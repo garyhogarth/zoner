@@ -26,9 +26,10 @@ export function SourceSelector() {
   }, [])
 
   return (
-    <div className="p-6 bg-gray-900 min-h-screen text-white">
-      <h1 className="text-2xl font-bold mb-6">Select a Screen to Share</h1>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    <div className="h-screen w-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 overflow-hidden">
+      <div className="w-full max-w-4xl">
+        <h1 className="text-2xl font-bold mb-6 text-center">Select a Screen to Share</h1>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {sources.map(source => (
           <div 
             key={source.id} 
@@ -43,6 +44,7 @@ export function SourceSelector() {
             <div className="font-medium text-center">{source.name}</div>
           </div>
         ))}
+        </div>
       </div>
     </div>
   )

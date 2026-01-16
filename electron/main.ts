@@ -69,14 +69,24 @@ function createMainWindow() {
 
 function createTray() {
     // Ensure we have an icon. In dev, it might be in public folder directly.
-    let iconPath = path.join(VITE_PUBLIC, 'vite.svg')
+    let iconPath = path.join(VITE_PUBLIC, 'tray.png')
 
     // Checking if file exists (optional, but good for debug)
-    // console.log('Tray icon path:', iconPath)
+    console.log('Tray icon path:', iconPath)
 
-    const icon = nativeImage.createFromPath(iconPath)
+    let icon = nativeImage.createFromPath(iconPath)
+
+    if (icon.isEmpty()) {
+        console.error("Tray icon is empty! Path was:", iconPath)
+        // Fallback: create an empty image so app doesn't crash, but it will be transparent
+        icon = nativeImage.createEmpty()
+    }
+
     // Resize strictly for tray
     const trayIcon = icon.resize({ width: 16, height: 16 })
+
+    // Set template image for macOS dark mode support functionality if it were a png
+    trayIcon.setTemplateImage(true)
 
     tray = new Tray(trayIcon)
     const contextMenu = Menu.buildFromTemplate([
