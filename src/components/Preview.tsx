@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
-import { useSearchParams, Link } from 'react-router-dom'
+import { useSearchParams, Link, useNavigate } from 'react-router-dom'
+
+interface Source {
+  id: string
+  name: string
+  thumbnail: string
+}
 
 export function Preview() {
   const [params] = useSearchParams()
   const sourceId = params.get('sourceId')
   const videoRef = useRef<HTMLVideoElement>(null)
+  const navigate = useNavigate()
   
   // Panning state
   const [pan, setPan] = useState({ x: 0, y: 0 })
@@ -14,6 +21,36 @@ export function Preview() {
   
   // Window focus state for toolbar visibility
   const [isFocused, setIsFocused] = useState(true)
+  
+  // Source dropdown state
+  const [sources, setSources] = useState<Source[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const [currentSourceName, setCurrentSourceName] = useState<string>('')
+
+  // Find current source name
+  useEffect(() => {
+    const source = sources.find(s => s.id === sourceId)
+    if (source) {
+      setCurrentSourceName(source.name)
+      // Notify main process
+      // @ts-ignore
+      window.ipcRenderer.send('set-current-source', { id: sourceId, name: source.name })
+    }
+  }, [sourceId, sources])
+
+  // Fetch sources for dropdown
+  useEffect(() => {
+    const fetchSources = async () => {
+      try {
+        // @ts-ignore
+        const availableSources = await window.ipcRenderer.invoke('get-sources')
+        setSources(availableSources)
+      } catch (e) {
+        console.error('Failed to fetch sources')
+      }
+    }
+    fetchSources()
+  }, [])
 
   // Window focus detection
   useEffect(() => {
@@ -79,10 +116,19 @@ export function Preview() {
   const handleZoomIn = () => setScale(s => Math.min(s + 0.1, 5))
   const handleZoomOut = () => setScale(s => Math.max(s - 0.1, 0.1))
 
+  const handleSourceChange = (newSourceId: string) => {
+    setShowDropdown(false)
+    navigate(`/preview?sourceId=${encodeURIComponent(newSourceId)}`)
+  }
+
+  const screens = sources.filter(s => s.id.startsWith('screen:'))
+  const windows = sources.filter(s => s.id.startsWith('window:'))
+
   return (
     <div 
       className="relative w-screen h-screen bg-black overflow-hidden"
       style={{ position: 'fixed', inset: 0 }}
+      onClick={() => setShowDropdown(false)}
     >
       {/* Layer 1: Video (lowest) */}
       <div 
@@ -219,13 +265,118 @@ export function Preview() {
           
           <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
           
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '12px', maxWidth: '120px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sourceId || ''}>
-            {sourceId}
+          {/* Source Dropdown */}
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={(e) => { 
+                e.stopPropagation()
+                setShowDropdown(!showDropdown) 
+              }}
+              onMouseDown={(e) => e.stopPropagation()}
+              style={{
+                color: 'white',
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '4px 10px',
+                fontSize: '12px',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                maxWidth: '150px',
+              }}
+              title={currentSourceName || sourceId || ''}
+            >
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {currentSourceName || sourceId?.split(':')[1] || 'Select'}
+              </span>
+              <span style={{ fontSize: '8px' }}>▼</span>
+            </button>
+            
+            {showDropdown && (
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  minWidth: '200px',
+                  maxHeight: '300px',
+                  overflowY: 'auto',
+                  backgroundColor: 'rgba(0, 0, 0, 0.95)',
+                  backdropFilter: 'blur(12px)',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8)',
+                  padding: '8px 0',
+                }}
+              >
+                {/* Screens */}
+                <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                  🖥️ SCREENS
+                </div>
+                {screens.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSourceChange(s.id)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      background: s.id === sourceId ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                      border: 'none',
+                      color: 'white',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+                
+                <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
+                
+                {/* Windows */}
+                <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
+                  🪟 WINDOWS
+                </div>
+                {windows.slice(0, 10).map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => handleSourceChange(s.id)}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      padding: '8px 12px',
+                      textAlign: 'left',
+                      background: s.id === sourceId ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
+                      border: 'none',
+                      color: 'white',
+                      fontSize: '13px',
+                      cursor: 'pointer',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {s.name}
+                  </button>
+                ))}
+                {windows.length > 10 && (
+                  <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
+                    ...and {windows.length - 10} more
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
     </div>
   )
 }
+
 
 

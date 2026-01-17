@@ -1,47 +1,74 @@
-import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, screen, desktopCapturer } from 'electron'
+import { app, BrowserWindow, Tray, Menu, nativeImage, ipcMain, desktopCapturer } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 
-// fileURLToPath is needed because in ESM __dirname is not defined
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
-// The built directory structure
-//
-// ├─┬─ dist
-// │ ├─ index.html
-// │ ├─ assets
-// │ └─ ...
-// ├─┬─ dist-electron
-// │ ├─ main.js
-// │ └─ preload.js
-//
 const DIST = path.join(__dirname, '../dist')
 const VITE_PUBLIC = app.isPackaged ? DIST : path.join(__dirname, '../public')
 
 process.env.DIST = DIST
 process.env.VITE_PUBLIC = VITE_PUBLIC
 
-// let selectorWindow: BrowserWindow | null = null
 let mainWindow: BrowserWindow | null = null
-let tray: Tray | null
+let tray: Tray | null = null
 
-// 🚧 Use ['ENV_NAME'] avoid vite:define plugin - Vite@2.x
+// Track current source
+let currentSourceId: string | null = null
+let currentSourceName: string | null = null
+
 const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 
-// IPC Handlers
-ipcMain.handle('get-sources', async () => {
-    const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 300, height: 200 } })
-    return sources.map(source => ({
+// Cached sources for tray menu
+interface Source {
+    id: string
+    name: string
+    thumbnail: string
+}
+let cachedSources: Source[] = []
+
+// Fetch and cache sources
+async function fetchSources(): Promise<Source[]> {
+    const sources = await desktopCapturer.getSources({
+        types: ['screen', 'window'],
+        thumbnailSize: { width: 300, height: 200 }
+    })
+    cachedSources = sources.map(source => ({
         id: source.id,
         name: source.name,
         thumbnail: source.thumbnail.toDataURL()
     }))
+    return cachedSources
+}
+
+// IPC Handlers
+ipcMain.handle('get-sources', async () => {
+    return await fetchSources()
 })
 
-ipcMain.on('log', (event, ...args) => {
-    console.log('[Renderer]', ...args)
+ipcMain.handle('get-current-source', () => {
+    return { id: currentSourceId, name: currentSourceName }
 })
 
+ipcMain.on('set-current-source', (event, { id, name }) => {
+    currentSourceId = id
+    currentSourceName = name
+    updateTrayMenu()
+})
+
+// Navigate to specific source
+function navigateToSource(sourceId: string) {
+    if (!mainWindow) {
+        createMainWindow()
+    }
+
+    const url = VITE_DEV_SERVER_URL
+        ? `${VITE_DEV_SERVER_URL}#/preview?sourceId=${encodeURIComponent(sourceId)}`
+        : `file://${path.join(DIST, 'index.html')}#/preview?sourceId=${encodeURIComponent(sourceId)}`
+
+    mainWindow?.loadURL(url)
+    mainWindow?.focus()
+}
 
 function createMainWindow() {
     if (mainWindow) {
@@ -58,64 +85,103 @@ function createMainWindow() {
         },
     })
 
-    // Load the selector route
     const url = VITE_DEV_SERVER_URL
         ? `${VITE_DEV_SERVER_URL}#/`
         : `file://${path.join(DIST, 'index.html')}#/`
 
     mainWindow.loadURL(url)
 
-    // Clean up
     mainWindow.on('closed', () => {
         mainWindow = null
     })
 }
 
+async function updateTrayMenu() {
+    if (!tray) return
+
+    // Refresh sources
+    await fetchSources()
+
+    const screens = cachedSources.filter(s => s.id.startsWith('screen:'))
+    const windows = cachedSources.filter(s => s.id.startsWith('window:'))
+
+    const menuTemplate: Electron.MenuItemConstructorOptions[] = [
+        {
+            label: currentSourceName ? `📺 ${currentSourceName}` : 'No source selected',
+            enabled: false
+        },
+        { type: 'separator' },
+        {
+            label: 'Select Source', submenu: [
+                { label: '🖥️ Screens', enabled: false },
+                ...screens.map(s => ({
+                    label: s.name,
+                    type: 'radio' as const,
+                    checked: s.id === currentSourceId,
+                    click: () => navigateToSource(s.id)
+                })),
+                { type: 'separator' as const },
+                { label: '🪟 Windows', enabled: false },
+                ...windows.slice(0, 15).map(s => ({
+                    label: s.name.length > 40 ? s.name.substring(0, 40) + '...' : s.name,
+                    type: 'radio' as const,
+                    checked: s.id === currentSourceId,
+                    click: () => navigateToSource(s.id)
+                })),
+                ...(windows.length > 15 ? [{ label: `...and ${windows.length - 15} more`, enabled: false }] : [])
+            ]
+        },
+        { type: 'separator' },
+        {
+            label: 'Open Selector', click: () => {
+                if (mainWindow) {
+                    const url = VITE_DEV_SERVER_URL
+                        ? `${VITE_DEV_SERVER_URL}#/`
+                        : `file://${path.join(DIST, 'index.html')}#/`
+                    mainWindow.loadURL(url)
+                    mainWindow.focus()
+                } else {
+                    createMainWindow()
+                }
+            }
+        },
+        { type: 'separator' },
+        { label: 'Quit', click: () => app.quit() },
+    ]
+
+    const contextMenu = Menu.buildFromTemplate(menuTemplate)
+    tray.setContextMenu(contextMenu)
+}
+
 function createTray() {
-    // Ensure we have an icon. In dev, it might be in public folder directly.
     let iconPath = path.join(VITE_PUBLIC, 'tray.png')
-
-    // Checking if file exists (optional, but good for debug)
-    console.log('Tray icon path:', iconPath)
-
     let icon = nativeImage.createFromPath(iconPath)
 
     if (icon.isEmpty()) {
         console.error("Tray icon is empty! Path was:", iconPath)
-        // Fallback: create an empty image so app doesn't crash, but it will be transparent
         icon = nativeImage.createEmpty()
     }
 
-    // Resize strictly for tray
     const trayIcon = icon.resize({ width: 16, height: 16 })
-
-    // Set template image for macOS dark mode support functionality if it were a png
     trayIcon.setTemplateImage(true)
 
     tray = new Tray(trayIcon)
-    const contextMenu = Menu.buildFromTemplate([
-        { label: 'Open', click: () => createMainWindow() },
-        { type: 'separator' },
-        { label: 'Quit', click: () => app.quit() },
-    ])
-
     tray.setToolTip('Sub-Screen')
-    tray.setContextMenu(contextMenu)
+
+    updateTrayMenu()
 }
 
-
 app.on('window-all-closed', () => {
-    if (process.platform !== 'darwin') {
-        // app.quit() 
-    }
+    // Keep running in tray on macOS
 })
 
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-        // createMainWindow()
+        createMainWindow()
     }
 })
 
 app.whenReady().then(() => {
     createTray()
 })
+

@@ -25,27 +25,163 @@ export function SourceSelector() {
     fetchSources()
   }, [])
 
-  return (
-    <div className="h-screen w-screen bg-gray-900 text-white flex flex-col items-center justify-center p-6 overflow-hidden">
-      <div className="w-full max-w-4xl">
-        <h1 className="text-2xl font-bold mb-6 text-center">Select a Screen to Share</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {sources.map(source => (
-          <div 
-            key={source.id} 
-            className="group cursor-pointer border border-gray-700 rounded-lg p-2 hover:border-blue-500 transition-all bg-gray-800"
-            onClick={() => navigate(`/preview?sourceId=${source.id}`)}
-          >
-            <img 
-               src={source.thumbnail} 
-               alt={source.name} 
-               className="w-full h-auto rounded mb-2 opacity-80 group-hover:opacity-100"
-            />
-            <div className="font-medium text-center">{source.name}</div>
-          </div>
-        ))}
+  // Split sources into screens and windows
+  const screens = sources.filter(s => s.id.startsWith('screen:'))
+  const windows = sources.filter(s => s.id.startsWith('window:'))
+
+  const SourceCard = ({ source }: { source: Source }) => (
+    <div 
+      onClick={() => navigate(`/preview?sourceId=${source.id}`)}
+      style={{
+        cursor: 'pointer',
+        backgroundColor: 'rgba(255, 255, 255, 0.05)',
+        backdropFilter: 'blur(12px)',
+        borderRadius: '12px',
+        padding: '12px',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
+        transition: 'all 0.2s ease',
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)'
+        e.currentTarget.style.transform = 'scale(1.02)'
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'
+        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+        e.currentTarget.style.transform = 'scale(1)'
+      }}
+    >
+      <img 
+        src={source.thumbnail} 
+        alt={source.name}
+        style={{
+          width: '100%',
+          height: 'auto',
+          borderRadius: '8px',
+          marginBottom: '8px',
+          opacity: 0.9,
+        }}
+      />
+      <div style={{
+        fontSize: '13px',
+        fontWeight: 500,
+        color: 'rgba(255, 255, 255, 0.9)',
+        textAlign: 'center',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+        whiteSpace: 'nowrap',
+      }}>
+        {source.name}
+      </div>
+    </div>
+  )
+
+  const Section = ({ title, items, icon }: { title: string, items: Source[], icon: string }) => (
+    <div style={{ marginBottom: '32px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '16px',
+        paddingLeft: '4px',
+      }}>
+        <span style={{ fontSize: '20px' }}>{icon}</span>
+        <h2 style={{
+          fontSize: '16px',
+          fontWeight: 600,
+          color: 'rgba(255, 255, 255, 0.7)',
+          margin: 0,
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+        }}>
+          {title}
+        </h2>
+        <span style={{
+          fontSize: '12px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          padding: '2px 8px',
+          borderRadius: '9999px',
+          color: 'rgba(255, 255, 255, 0.5)',
+        }}>
+          {items.length}
+        </span>
+      </div>
+      
+      {items.length > 0 ? (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+          gap: '16px',
+        }}>
+          {items.map(source => (
+            <SourceCard key={source.id} source={source} />
+          ))}
         </div>
+      ) : (
+        <div style={{
+          padding: '24px',
+          textAlign: 'center',
+          color: 'rgba(255, 255, 255, 0.4)',
+          fontSize: '14px',
+        }}>
+          No {title.toLowerCase()} available
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{
+      minHeight: '100vh',
+      width: '100vw',
+      background: 'linear-gradient(180deg, #0f0f0f 0%, #1a1a2e 100%)',
+      color: 'white',
+      padding: '40px',
+      boxSizing: 'border-box',
+      overflowY: 'auto',
+    }}>
+      {/* Header */}
+      <div style={{
+        textAlign: 'center',
+        marginBottom: '48px',
+      }}>
+        <h1 style={{
+          fontSize: '28px',
+          fontWeight: 700,
+          marginBottom: '8px',
+          background: 'linear-gradient(135deg, #fff 0%, #a5b4fc 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          letterSpacing: '-0.5px',
+        }}>
+          Sub-Screen
+        </h1>
+        <p style={{
+          fontSize: '14px',
+          color: 'rgba(255, 255, 255, 0.5)',
+          margin: 0,
+        }}>
+          Select a screen or window to share
+        </p>
+      </div>
+
+      {/* Content */}
+      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+        <Section title="Screens" items={screens} icon="🖥️" />
+        <Section title="Windows" items={windows} icon="🪟" />
+      </div>
+
+      {/* Footer hint */}
+      <div style={{
+        textAlign: 'center',
+        marginTop: '32px',
+        fontSize: '12px',
+        color: 'rgba(255, 255, 255, 0.3)',
+      }}>
+        Click a source to start preview
       </div>
     </div>
   )
 }
+
