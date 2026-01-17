@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { Rnd } from 'react-rnd'
 
 export function Compositor() {
   const [activeSources, setActiveSources] = useState<any[]>([])
@@ -17,8 +18,14 @@ export function Compositor() {
   }
 
   const handleAddSource = (source: any) => {
-    setActiveSources([...activeSources, source])
+    // Add unique ID to allow multiple instances of same source
+    const instanceId = Date.now().toString()
+    setActiveSources([...activeSources, { ...source, instanceId }])
     setShowPicker(false)
+  }
+
+  const handleDismissSource = (instanceId: string) => {
+    setActiveSources(activeSources.filter(s => s.instanceId !== instanceId))
   }
 
   return (
@@ -29,16 +36,16 @@ export function Compositor() {
       color: 'white',
       display: 'flex',
       flexDirection: 'column',
-      padding: '20px',
-      boxSizing: 'border-box',
+      overflow: 'hidden',
     }}>
       <header style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: '20px',
-        paddingBottom: '10px',
+        padding: '12px 20px',
+        background: '#1a1a1a',
         borderBottom: '1px solid #333',
+        zIndex: 50,
       }}>
         <h1 style={{ margin: 0, fontSize: '18px' }}>Compositor Prototype</h1>
         <button 
@@ -58,36 +65,90 @@ export function Compositor() {
         </button>
       </header>
 
-      {/* Composition Area */}
+      {/* Composition Area - Relative for Rnd positioning */}
       <div style={{
         flex: 1,
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-        gap: '20px',
-        alignContent: 'start',
-        overflowY: 'auto',
+        position: 'relative',
+        overflow: 'hidden',
+        background: 'radial-gradient(circle at center, #222 0%, #111 100%)',
       }}>
-        {activeSources.length === 0 && !showPicker ? (
-          <div style={{ gridColumn: '1/-1', textAlign: 'center', color: '#555', marginTop: '40px' }}>
-            No sources added. Click "+ Add Source" to begin.
+        {activeSources.length === 0 && !showPicker && (
+          <div style={{ 
+            position: 'absolute', 
+            top: '50%', 
+            left: '50%', 
+            transform: 'translate(-50%, -50%)',
+            color: '#555',
+          }}>
+            Click "+ Add Source" to begin composition.
           </div>
-        ) : (
-          activeSources.map((source, index) => (
-            <div key={index + '-' + source.id} style={{
-              background: '#222',
-              borderRadius: '8px',
-              overflow: 'hidden',
+        )}
+
+        {activeSources.map((source) => (
+          <Rnd
+            key={source.instanceId}
+            default={{
+              x: 50,
+              y: 50,
+              width: 400,
+              height: 300,
+            }}
+            bounds="parent"
+            dragHandleClassName="drag-handle"
+            style={{ zIndex: 10 }}
+          >
+            <div style={{
+              width: '100%',
+              height: '100%',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 4px 6px rgba(0,0,0,0.3)',
+              background: '#000',
+              border: '1px solid #444',
+              borderRadius: '8px',
+              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
+              overflow: 'hidden',
             }}>
-              <div style={{ padding: '8px 12px', fontSize: '12px', background: '#333', fontWeight: 500 }}>
-                {source.name}
+              {/* Header / Drag Handle */}
+              <div 
+                className="drag-handle"
+                style={{
+                  padding: '6px 10px',
+                  background: '#222',
+                  borderBottom: '1px solid #333',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'move',
+                  userSelect: 'none',
+                }}
+              >
+                <div style={{ fontSize: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
+                  {source.name}
+                </div>
+                <button 
+                  onClick={() => handleDismissSource(source.instanceId)}
+                  onMouseDown={e => e.stopPropagation()}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#888',
+                    cursor: 'pointer',
+                    fontSize: '14px',
+                    padding: '0 4px',
+                  }}
+                  title="Dismiss"
+                >
+                  ✕
+                </button>
               </div>
-              <SourcePreview sourceId={source.id} />
+
+              {/* Content Area with Internal Pan/Zoom */}
+              <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
+                <ComposableSourceContent sourceId={source.id} />
+              </div>
             </div>
-          ))
-        )}
+          </Rnd>
+        ))}
       </div>
 
       {/* Source Picker Modal */}
@@ -152,8 +213,12 @@ export function Compositor() {
   )
 }
 
-function SourcePreview({ sourceId }: { sourceId: string }) {
+function ComposableSourceContent({ sourceId }: { sourceId: string }) {
   const videoRef = useRef<HTMLVideoElement>(null)
+  const [scale, setScale] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStartRef = useRef({ x: 0, y: 0 })
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -170,7 +235,11 @@ function SourcePreview({ sourceId }: { sourceId: string }) {
         })
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          videoRef.current.play()
+          videoRef.current.onloadedmetadata = () => {
+             videoRef.current?.play()
+             setPan({ x: 0, y: 0 })
+             setScale(1 / (window.devicePixelRatio || 1))
+          }
         }
       } catch (e) {
         console.error('Stream failed', e)
@@ -182,9 +251,60 @@ function SourcePreview({ sourceId }: { sourceId: string }) {
     }
   }, [sourceId])
 
+
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    setIsDragging(true)
+    dragStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
+  }
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging) return
+    setPan({
+      x: e.clientX - dragStartRef.current.x,
+      y: e.clientY - dragStartRef.current.y
+    })
+  }
+
+  const onMouseUp = () => setIsDragging(false)
+
   return (
-    <div style={{ width: '100%', aspectRatio: '16/9', background: 'black' }}>
-      <video ref={videoRef} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    <div 
+      style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab' }}
+      onMouseDown={onMouseDown}
+      onMouseMove={onMouseMove}
+      onMouseUp={onMouseUp}
+      onMouseLeave={onMouseUp}
+    >
+      <div style={{
+          transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+          transformOrigin: 'top left',
+          willChange: 'transform',
+      }}>
+        <video 
+          ref={videoRef} 
+          style={{ display: 'block', maxWidth: 'none', maxHeight: 'none' }} 
+          draggable={false}
+        />
+      </div>
+
+       {/* Internal Controls Overlay */}
+       <div style={{
+         position: 'absolute',
+         bottom: '8px',
+         right: '8px',
+         display: 'flex',
+         gap: '4px',
+         background: 'rgba(0,0,0,0.6)',
+         borderRadius: '4px',
+         padding: '4px'
+       }}
+       onMouseDown={e => e.stopPropagation()} // Prevent pan drag start
+       >
+         <button onClick={() => setScale(s => Math.max(0.1, s - 0.1))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}>-</button>
+         <span style={{ fontSize: '10px', color: 'white', alignSelf: 'center' }}>{Math.round(scale * 100)}%</span>
+         <button onClick={() => setScale(s => Math.min(5, s + 0.1))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}>+</button>
+       </div>
     </div>
   )
 }
