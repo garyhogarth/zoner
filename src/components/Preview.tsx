@@ -232,6 +232,13 @@ export function Preview() {
     groups[iconKey].push(source)
     return groups
   }, {} as Record<string, Source[]>)
+
+  // Sort windows within each group alphabetically
+  Object.values(groupedWindows).forEach(group => {
+    group.sort((a, b) => a.name.localeCompare(b.name))
+  })
+
+  // Sort groups based on the first window's name (which is now the alphabetical first)
   const sortedIconKeys = Object.keys(groupedWindows).sort((a, b) => {
     if (a === 'no-icon') return 1
     if (b === 'no-icon') return -1
