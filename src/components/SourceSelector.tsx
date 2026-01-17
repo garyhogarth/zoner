@@ -49,15 +49,7 @@ function TickerText({ text, style }: { text: string, style?: React.CSSProperties
 
 export function SourceSelector() {
   const [sources, setSources] = useState<Source[]>([])
-  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({}) // Keyed by iconKey
   const navigate = useNavigate()
-
-  const toggleGroup = (key: string) => {
-    setCollapsedGroups(prev => ({
-      ...prev,
-      [key]: !prev[key]
-    }))
-  }
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -110,6 +102,7 @@ export function SourceSelector() {
           overflow: 'hidden',
           marginBottom: '8px',
           backgroundColor: 'rgba(0,0,0,0.3)',
+          position: 'relative',
         }}>
           <img 
             src={source.thumbnail} 
@@ -121,6 +114,26 @@ export function SourceSelector() {
               opacity: 0.9,
             }}
           />
+          {/* App Icon Badge */}
+          {source.appIcon && (
+            <div style={{
+              position: 'absolute',
+              bottom: '4px',
+              right: '4px',
+              width: '20px',
+              height: '20px',
+              borderRadius: '4px',
+              overflow: 'hidden',
+              boxShadow: '0 2px 4px rgba(0,0,0,0.5)',
+              backgroundColor: '#222',
+            }}>
+              <img 
+                src={source.appIcon} 
+                alt="" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            </div>
+          )}
         </div>
         {/* Name display */}
         <div style={{ textAlign: 'center', minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -192,137 +205,6 @@ export function SourceSelector() {
     </div>
   )
 
-  // Group windows by appIcon (same icon = same app)
-  const groupedWindows = windows.reduce((groups, source) => {
-    const iconKey = source.appIcon || 'no-icon'
-    if (!groups[iconKey]) {
-      groups[iconKey] = []
-    }
-    groups[iconKey].push(source)
-    return groups
-  }, {} as Record<string, Source[]>)
-
-  // Sort groups: windows with icons first, then no-icon ones
-  const sortedIconKeys = Object.keys(groupedWindows).sort((a, b) => {
-    if (a === 'no-icon') return 1
-    if (b === 'no-icon') return -1
-    // Sort by first window name in group for consistent ordering
-    return (groupedWindows[a][0]?.name || '').localeCompare(groupedWindows[b][0]?.name || '')
-  })
-
-  const GroupedWindowsSection = () => (
-    <div style={{ marginBottom: '32px' }}>
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        marginBottom: '16px',
-        paddingLeft: '4px',
-      }}>
-        <span style={{ fontSize: '20px' }}>🪟</span>
-        <h2 style={{
-          fontSize: '16px',
-          fontWeight: 600,
-          color: 'rgba(255, 255, 255, 0.7)',
-          margin: 0,
-          letterSpacing: '0.5px',
-          textTransform: 'uppercase',
-        }}>
-          Windows
-        </h2>
-        <span style={{
-          fontSize: '12px',
-          backgroundColor: 'rgba(255, 255, 255, 0.1)',
-          padding: '2px 8px',
-          borderRadius: '9999px',
-          color: 'rgba(255, 255, 255, 0.5)',
-        }}>
-          {windows.length}
-        </span>
-      </div>
-      
-      {windows.length > 0 ? (
-        <div>
-          {sortedIconKeys.map(iconKey => {
-            const group = groupedWindows[iconKey]
-            const isCollapsed = collapsedGroups[iconKey] ?? false // Default expanded
-
-            return (
-            <div key={iconKey} style={{ marginBottom: '20px' }}>
-              {/* App header with icon - Clickable for collapse */}
-              <div 
-                onClick={() => toggleGroup(iconKey)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '10px',
-                  paddingLeft: '8px',
-                  cursor: 'pointer',
-                  userSelect: 'none',
-                  opacity: isCollapsed ? 0.6 : 1,
-                }}
-              >
-                <div style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>▼</div>
-                
-                {/* App icon */}
-                {iconKey !== 'no-icon' && group[0]?.appIcon && (
-                  <img 
-                    src={group[0].appIcon!} 
-                    alt="" 
-                    style={{ width: '20px', height: '20px', borderRadius: '4px' }}
-                  />
-                )}
-                {iconKey === 'no-icon' && (
-                  <span style={{ fontSize: '16px' }}>🪟</span>
-                )}
-                
-                {/* No derived name - just showing count/label */}
-                <div style={{
-                  fontSize: '13px',
-                  fontWeight: 600,
-                  color: 'rgba(255, 255, 255, 0.5)',
-                }}>
-                  {iconKey === 'no-icon' ? 'Other Windows' : 'Application'}
-                </div>
-
-                <div style={{
-                  fontSize: '11px',
-                  color: 'rgba(255, 255, 255, 0.3)',
-                }}>
-                  ({group.length})
-                </div>
-              </div>
-
-              {/* Windows grid for this app - Collapsible */}
-              {!isCollapsed && (
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 200px))',
-                  gap: '12px',
-                  paddingLeft: '12px', 
-                }}>
-                  {group.map(source => (
-                    <SourceCard key={source.id} source={source} />
-                  ))}
-                </div>
-              )}
-            </div>
-          )})}
-        </div>
-      ) : (
-        <div style={{
-          padding: '24px',
-          textAlign: 'center',
-          color: 'rgba(255, 255, 255, 0.4)',
-          fontSize: '14px',
-        }}>
-          No windows available
-        </div>
-      )}
-    </div>
-  )
-
   return (
     <div style={{
       minHeight: '100vh',
@@ -361,7 +243,7 @@ export function SourceSelector() {
       {/* Content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <Section title="Screens" items={screens} icon="🖥️" />
-        <GroupedWindowsSection />
+        <Section title="Windows" items={windows} icon="🪟" />
       </div>
 
       {/* Footer hint */}
