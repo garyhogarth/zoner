@@ -69,3 +69,18 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Marquee animation for dropdown items */
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(calc(-100% + 180px));
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}

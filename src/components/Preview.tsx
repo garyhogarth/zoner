@@ -7,6 +7,60 @@ interface Source {
   thumbnail: string
 }
 
+// Dropdown item with truncation + marquee on hover
+function DropdownItem({ name, isActive, onClick }: { name: string, isActive: boolean, onClick: () => void }) {
+  const [isHovered, setIsHovered] = useState(false)
+  const textRef = useRef<HTMLSpanElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [shouldScroll, setShouldScroll] = useState(false)
+  
+  useEffect(() => {
+    if (textRef.current && containerRef.current) {
+      setShouldScroll(textRef.current.scrollWidth > containerRef.current.clientWidth)
+    }
+  }, [name])
+  
+  return (
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        display: 'block',
+        width: '100%',
+        padding: '8px 12px',
+        textAlign: 'left',
+        background: isActive ? 'rgba(59, 130, 246, 0.3)' : isHovered ? 'rgba(255,255,255,0.1)' : 'transparent',
+        border: 'none',
+        color: 'white',
+        fontSize: '13px',
+        cursor: 'pointer',
+        overflow: 'hidden',
+      }}
+    >
+      <div 
+        ref={containerRef}
+        style={{ 
+          overflow: 'hidden', 
+          position: 'relative',
+          maxWidth: '180px',
+        }}
+      >
+        <span
+          ref={textRef}
+          style={{
+            display: 'inline-block',
+            whiteSpace: 'nowrap',
+            animation: isHovered && shouldScroll ? 'marquee 4s linear infinite' : 'none',
+          }}
+        >
+          {name}
+        </span>
+      </div>
+    </button>
+  )
+}
+
 export function Preview() {
   const [params] = useSearchParams()
   const sourceId = params.get('sourceId')
@@ -317,23 +371,12 @@ export function Preview() {
                   🖥️ SCREENS
                 </div>
                 {screens.map(s => (
-                  <button
+                  <DropdownItem
                     key={s.id}
+                    name={s.name}
+                    isActive={s.id === sourceId}
                     onClick={() => handleSourceChange(s.id)}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: '8px 12px',
-                      textAlign: 'left',
-                      background: s.id === sourceId ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
-                      border: 'none',
-                      color: 'white',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {s.name}
-                  </button>
+                  />
                 ))}
                 
                 <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
@@ -343,26 +386,12 @@ export function Preview() {
                   🪟 WINDOWS
                 </div>
                 {windows.slice(0, 10).map(s => (
-                  <button
+                  <DropdownItem
                     key={s.id}
+                    name={s.name}
+                    isActive={s.id === sourceId}
                     onClick={() => handleSourceChange(s.id)}
-                    style={{
-                      display: 'block',
-                      width: '100%',
-                      padding: '8px 12px',
-                      textAlign: 'left',
-                      background: s.id === sourceId ? 'rgba(59, 130, 246, 0.3)' : 'transparent',
-                      border: 'none',
-                      color: 'white',
-                      fontSize: '13px',
-                      cursor: 'pointer',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {s.name}
-                  </button>
+                  />
                 ))}
                 {windows.length > 10 && (
                   <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
