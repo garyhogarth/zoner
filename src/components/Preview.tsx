@@ -8,23 +8,8 @@ interface Source {
   appIcon?: string | null
 }
 
-// Parse source name into app and title
-function parseSourceName(source: Source): { app: string | null, title: string } {
-  if (source.id.startsWith('screen:')) {
-    return { app: null, title: source.name }
-  }
-  const dashIndex = source.name.lastIndexOf(' - ')
-  if (dashIndex > 0) {
-    return {
-      app: source.name.substring(dashIndex + 3),
-      title: source.name.substring(0, dashIndex)
-    }
-  }
-  return { app: null, title: source.name }
-}
-
-// Dropdown item with truncation + marquee on hover + thumbnail
-function DropdownItem({ name, thumbnail, isActive, onClick }: { name: string, thumbnail?: string, isActive: boolean, onClick: () => void }) {
+// Dropdown item with truncation + marquee on hover + thumbnail + appIcon
+function DropdownItem({ name, thumbnail, appIcon, isActive, onClick }: { name: string, thumbnail?: string, appIcon?: string | null, isActive: boolean, onClick: () => void }) {
   const [isHovered, setIsHovered] = useState(false)
   const textRef = useRef<HTMLSpanElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -56,25 +41,47 @@ function DropdownItem({ name, thumbnail, isActive, onClick }: { name: string, th
         overflow: 'hidden',
       }}
     >
-      {/* Thumbnail */}
+      {/* Thumbnail + App Icon */}
       {thumbnail && (
         <div style={{
+          position: 'relative',
           width: '28px',
           height: '28px',
           flexShrink: 0,
-          borderRadius: '4px',
-          overflow: 'hidden',
-          backgroundColor: 'rgba(0,0,0,0.5)',
         }}>
-          <img 
-            src={thumbnail} 
-            alt=""
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-            }}
-          />
+          <div style={{
+            width: '100%',
+            height: '100%',
+            borderRadius: '4px',
+            overflow: 'hidden',
+            backgroundColor: 'rgba(0,0,0,0.5)',
+          }}>
+            <img 
+              src={thumbnail} 
+              alt=""
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          </div>
+          {appIcon && (
+            <img
+              src={appIcon}
+              alt=""
+              style={{
+                position: 'absolute',
+                bottom: '-2px',
+                right: '-2px',
+                width: '12px',
+                height: '12px',
+                borderRadius: '3px',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                backgroundColor: '#222',
+              }}
+            />
+          )}
         </div>
       )}
       <div 
@@ -218,18 +225,17 @@ export function Preview() {
   const screens = sources.filter(s => s.id.startsWith('screen:'))
   const windows = sources.filter(s => s.id.startsWith('window:'))
 
-  // Group windows by app
+  // Group windows by appIcon
   const groupedWindows = windows.reduce((groups, source) => {
-    const { app } = parseSourceName(source)
-    const groupName = app || 'Other'
-    if (!groups[groupName]) groups[groupName] = []
-    groups[groupName].push(source)
+    const iconKey = source.appIcon || 'no-icon'
+    if (!groups[iconKey]) groups[iconKey] = []
+    groups[iconKey].push(source)
     return groups
   }, {} as Record<string, Source[]>)
-  const sortedApps = Object.keys(groupedWindows).sort((a, b) => {
-    if (a === 'Other') return 1
-    if (b === 'Other') return -1
-    return a.localeCompare(b)
+  const sortedIconKeys = Object.keys(groupedWindows).sort((a, b) => {
+    if (a === 'no-icon') return 1
+    if (b === 'no-icon') return -1
+    return (groupedWindows[a][0]?.name || '').localeCompare(groupedWindows[b][0]?.name || '')
   })
 
   return (
@@ -436,19 +442,28 @@ export function Preview() {
                 
                 <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
                 
-                {/* Windows grouped by app */}
-                {sortedApps.map(appName => (
-                  <div key={appName}>
-                    <div style={{ padding: '4px 12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase' }}>
-                        {appName}
-                      </div>
+                {/* Windows grouped by appIcon */}
+                {sortedIconKeys.map(iconKey => (
+                  <div key={iconKey}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      {iconKey !== 'no-icon' && groupedWindows[iconKey][0]?.appIcon && (
+                        <img 
+                          src={groupedWindows[iconKey][0].appIcon!} 
+                          alt="" 
+                          style={{ width: '14px', height: '14px', borderRadius: '3px' }}
+                        />
+                      )}
+                      {iconKey === 'no-icon' && <span style={{ fontSize: '12px' }}>🪟</span>}
+                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
+                        ({groupedWindows[iconKey].length})
+                      </span>
                     </div>
-                    {groupedWindows[appName].map(s => (
+                    {groupedWindows[iconKey].map(s => (
                       <DropdownItem
                         key={s.id}
-                        name={parseSourceName(s).title}
+                        name={s.name}
                         thumbnail={s.thumbnail}
+                        appIcon={s.appIcon}
                         isActive={s.id === sourceId}
                         onClick={() => handleSourceChange(s.id)}
                       />

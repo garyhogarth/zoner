@@ -127,6 +127,7 @@ async function updateTrayMenu() {
                 { label: '🪟 Windows', enabled: false },
                 ...windows.map(s => ({
                     label: s.name.length > 50 ? s.name.substring(0, 50) + '...' : s.name,
+                    icon: s.appIcon ? nativeImage.createFromDataURL(s.appIcon).resize({ width: 16, height: 16 }) : undefined,
                     type: 'radio' as const,
                     checked: s.id === currentSourceId,
                     click: () => navigateToSource(s.id)

@@ -78,7 +78,15 @@ function TickerText({ text, style }: { text: string, style?: React.CSSProperties
 
 export function SourceSelector() {
   const [sources, setSources] = useState<Source[]>([])
+  const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({}) // Keyed by iconKey
   const navigate = useNavigate()
+
+  const toggleGroup = (key: string) => {
+    setCollapsedGroups(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }))
+  }
 
   useEffect(() => {
     const fetchSources = async () => {
@@ -225,22 +233,22 @@ export function SourceSelector() {
     </div>
   )
 
-  // Group windows by app name
+  // Group windows by appIcon (same icon = same app)
   const groupedWindows = windows.reduce((groups, source) => {
-    const { app } = parseSourceName(source)
-    const groupName = app || 'Other'
-    if (!groups[groupName]) {
-      groups[groupName] = []
+    const iconKey = source.appIcon || 'no-icon'
+    if (!groups[iconKey]) {
+      groups[iconKey] = []
     }
-    groups[groupName].push(source)
+    groups[iconKey].push(source)
     return groups
   }, {} as Record<string, Source[]>)
 
-  // Sort groups alphabetically, with 'Other' at the end
-  const sortedAppNames = Object.keys(groupedWindows).sort((a, b) => {
-    if (a === 'Other') return 1
-    if (b === 'Other') return -1
-    return a.localeCompare(b)
+  // Sort groups: windows with icons first, then no-icon ones
+  const sortedIconKeys = Object.keys(groupedWindows).sort((a, b) => {
+    if (a === 'no-icon') return 1
+    if (b === 'no-icon') return -1
+    // Sort by first window name in group for consistent ordering
+    return (groupedWindows[a][0]?.name || '').localeCompare(groupedWindows[b][0]?.name || '')
   })
 
   const GroupedWindowsSection = () => (
@@ -276,50 +284,88 @@ export function SourceSelector() {
       
       {windows.length > 0 ? (
         <div>
-          {sortedAppNames.map(appName => (
-            <div key={appName} style={{ marginBottom: '20px' }}>
-              {/* App header */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                marginBottom: '10px',
-                paddingLeft: '8px',
-              }}>
+          {sortedIconKeys.map(iconKey => {
+            const group = groupedWindows[iconKey]
+            // Try to derive app name from the group
+            let derivedName = 'Unknown App'
+            
+            // Strategy 1: Common suffix " - AppName"
+            const firstTitle = group[0].name
+            const lastDash = firstTitle.lastIndexOf(' - ')
+            if (lastDash > 0) {
+              const suffix = firstTitle.substring(lastDash + 3)
+              // Verify suffix exists in at least one other (or just use it if single)
+              derivedName = suffix
+            } else {
+               // Strategy 2: Check for known app prefixes
+               const knownApps = ['Google Chrome', 'Safari', 'Firefox', 'VS Code', 'Code', 'Slack', 'Discord', 'Finder', 'Terminal', 'iTerm', 'Electron']
+               const found = knownApps.find(app => firstTitle.startsWith(app))
+               derivedName = found || 'Application'
+            }
+
+            const isCollapsed = collapsedGroups[iconKey] ?? false // Default expanded
+
+            return (
+            <div key={iconKey} style={{ marginBottom: '20px' }}>
+              {/* App header with icon - Clickable for collapse */}
+              <div 
+                onClick={() => toggleGroup(iconKey)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  marginBottom: '10px',
+                  paddingLeft: '8px',
+                  cursor: 'pointer',
+                  userSelect: 'none',
+                  opacity: isCollapsed ? 0.6 : 1,
+                }}
+              >
+                <div style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)', transition: 'transform 0.2s', fontSize: '10px', color: 'rgba(255,255,255,0.5)' }}>▼</div>
+                
                 {/* App icon */}
-                {groupedWindows[appName][0]?.appIcon && (
+                {iconKey !== 'no-icon' && group[0]?.appIcon && (
                   <img 
-                    src={groupedWindows[appName][0].appIcon} 
+                    src={group[0].appIcon!} 
                     alt="" 
-                    style={{ width: '18px', height: '18px', borderRadius: '4px' }}
+                    style={{ width: '20px', height: '20px', borderRadius: '4px' }}
                   />
                 )}
+                {iconKey === 'no-icon' && (
+                  <span style={{ fontSize: '16px' }}>🪟</span>
+                )}
+                
                 <div style={{
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: 'rgba(255, 255, 255, 0.6)',
+                  color: 'rgba(255, 255, 255, 0.9)',
                 }}>
-                  {appName}
+                  {derivedName}
                 </div>
+
                 <div style={{
                   fontSize: '11px',
                   color: 'rgba(255, 255, 255, 0.3)',
                 }}>
-                  ({groupedWindows[appName].length})
+                  ({group.length} {group.length === 1 ? 'window' : 'windows'})
                 </div>
               </div>
-              {/* Windows grid for this app */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 200px))',
-                gap: '12px',
-              }}>
-                {groupedWindows[appName].map(source => (
-                  <SourceCard key={source.id} source={source} />
-                ))}
-              </div>
+
+              {/* Windows grid for this app - Collapsible */}
+              {!isCollapsed && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 200px))',
+                  gap: '12px',
+                  paddingLeft: '12px', 
+                }}>
+                  {group.map(source => (
+                    <SourceCard key={source.id} source={source} />
+                  ))}
+                </div>
+              )}
             </div>
-          ))}
+          )})}
         </div>
       ) : (
         <div style={{
