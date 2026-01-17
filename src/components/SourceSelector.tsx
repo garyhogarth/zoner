@@ -286,23 +286,6 @@ export function SourceSelector() {
         <div>
           {sortedIconKeys.map(iconKey => {
             const group = groupedWindows[iconKey]
-            // Try to derive app name from the group
-            let derivedName = 'Unknown App'
-            
-            // Strategy 1: Common suffix " - AppName"
-            const firstTitle = group[0].name
-            const lastDash = firstTitle.lastIndexOf(' - ')
-            if (lastDash > 0) {
-              const suffix = firstTitle.substring(lastDash + 3)
-              // Verify suffix exists in at least one other (or just use it if single)
-              derivedName = suffix
-            } else {
-               // Strategy 2: Check for known app prefixes
-               const knownApps = ['Google Chrome', 'Safari', 'Firefox', 'VS Code', 'Code', 'Slack', 'Discord', 'Finder', 'Terminal', 'iTerm', 'Electron']
-               const found = knownApps.find(app => firstTitle.startsWith(app))
-               derivedName = found || 'Application'
-            }
-
             const isCollapsed = collapsedGroups[iconKey] ?? false // Default expanded
 
             return (
@@ -335,19 +318,20 @@ export function SourceSelector() {
                   <span style={{ fontSize: '16px' }}>🪟</span>
                 )}
                 
+                {/* No derived name - just showing count/label */}
                 <div style={{
                   fontSize: '13px',
                   fontWeight: 600,
-                  color: 'rgba(255, 255, 255, 0.9)',
+                  color: 'rgba(255, 255, 255, 0.5)',
                 }}>
-                  {derivedName}
+                  {iconKey === 'no-icon' ? 'Other Windows' : 'Application'}
                 </div>
 
                 <div style={{
                   fontSize: '11px',
                   color: 'rgba(255, 255, 255, 0.3)',
                 }}>
-                  ({group.length} {group.length === 1 ? 'window' : 'windows'})
+                  ({group.length})
                 </div>
               </div>
 
