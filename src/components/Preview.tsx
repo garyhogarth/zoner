@@ -116,7 +116,7 @@ export function Preview() {
   
   // Panning state
   const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [scale, setScale] = useState(1)
+  const [scale, setScale] = useState(1 / (window.devicePixelRatio || 1))
   const [isDragging, setIsDragging] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   
@@ -187,6 +187,7 @@ export function Preview() {
           videoRef.current.onloadedmetadata = () => {
              videoRef.current?.play()
              setPan({ x: 0, y: 0 })
+             setScale(1 / (window.devicePixelRatio || 1))
           }
         }
       } catch (e) {
