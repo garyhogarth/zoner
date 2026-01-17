@@ -1,10 +1,78 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 
 interface Source {
   id: string
   name: string
   thumbnail: string
+}
+
+// Parse source name into app and title
+function parseSourceName(source: Source): { app: string | null, title: string } {
+  if (source.id.startsWith('screen:')) {
+    // Screen names are usually like "Screen 1" or display names
+    return { app: null, title: source.name }
+  }
+  
+  // For windows, try to extract app name
+  // Common patterns: "App Name - Title" or just "Title"
+  const dashIndex = source.name.lastIndexOf(' - ')
+  if (dashIndex > 0) {
+    return {
+      app: source.name.substring(dashIndex + 3), // App is often at the end
+      title: source.name.substring(0, dashIndex)
+    }
+  }
+  
+  // No dash, check for common app patterns at start
+  const knownApps = ['Google Chrome', 'Safari', 'Firefox', 'VS Code', 'Code', 'Slack', 'Discord', 'Finder', 'Terminal', 'iTerm']
+  for (const app of knownApps) {
+    if (source.name.startsWith(app + ' ')) {
+      return { app, title: source.name.substring(app.length + 1) }
+    }
+    if (source.name === app) {
+      return { app, title: app }
+    }
+  }
+  
+  return { app: null, title: source.name }
+}
+
+// Ticker text component with marquee on hover
+function TickerText({ text, style }: { text: string, style?: React.CSSProperties }) {
+  const [isHovered, setIsHovered] = useState(false)
+  const textRef = useRef<HTMLSpanElement>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [shouldScroll, setShouldScroll] = useState(false)
+  
+  useEffect(() => {
+    if (textRef.current && containerRef.current) {
+      setShouldScroll(textRef.current.scrollWidth > containerRef.current.clientWidth)
+    }
+  }, [text])
+  
+  return (
+    <div
+      ref={containerRef}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        overflow: 'hidden',
+        ...style,
+      }}
+    >
+      <span
+        ref={textRef}
+        style={{
+          display: 'inline-block',
+          whiteSpace: 'nowrap',
+          animation: isHovered && shouldScroll ? 'marquee 4s linear infinite' : 'none',
+        }}
+      >
+        {text}
+      </span>
+    </div>
+  )
 }
 
 export function SourceSelector() {
@@ -29,62 +97,78 @@ export function SourceSelector() {
   const screens = sources.filter(s => s.id.startsWith('screen:'))
   const windows = sources.filter(s => s.id.startsWith('window:'))
 
-  const SourceCard = ({ source }: { source: Source }) => (
-    <div 
-      onClick={() => navigate(`/preview?sourceId=${source.id}`)}
-      style={{
-        cursor: 'pointer',
-        backgroundColor: 'rgba(255, 255, 255, 0.05)',
-        backdropFilter: 'blur(12px)',
-        borderRadius: '10px',
-        padding: '10px',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        transition: 'all 0.2s ease',
-        maxWidth: '200px',
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
-        e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)'
-        e.currentTarget.style.transform = 'scale(1.02)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'
-        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
-        e.currentTarget.style.transform = 'scale(1)'
-      }}
-    >
-      <div style={{
-        width: '100%',
-        height: '100px',
-        borderRadius: '6px',
-        overflow: 'hidden',
-        marginBottom: '8px',
-        backgroundColor: 'rgba(0,0,0,0.3)',
-      }}>
-        <img 
-          src={source.thumbnail} 
-          alt={source.name}
-          style={{
-            width: '100%',
-            height: '100%',
-            objectFit: 'contain',
-            opacity: 0.9,
-          }}
-        />
+  const SourceCard = ({ source }: { source: Source }) => {
+    const { app, title } = parseSourceName(source)
+    
+    return (
+      <div 
+        onClick={() => navigate(`/preview?sourceId=${source.id}`)}
+        style={{
+          cursor: 'pointer',
+          backgroundColor: 'rgba(255, 255, 255, 0.05)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '10px',
+          padding: '10px',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          transition: 'all 0.2s ease',
+          maxWidth: '200px',
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+          e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.6)'
+          e.currentTarget.style.transform = 'scale(1.02)'
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)'
+          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)'
+          e.currentTarget.style.transform = 'scale(1)'
+        }}
+      >
+        <div style={{
+          width: '100%',
+          height: '100px',
+          borderRadius: '6px',
+          overflow: 'hidden',
+          marginBottom: '8px',
+          backgroundColor: 'rgba(0,0,0,0.3)',
+        }}>
+          <img 
+            src={source.thumbnail} 
+            alt={source.name}
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              opacity: 0.9,
+            }}
+          />
+        </div>
+        {/* 2-line name display */}
+        <div style={{ textAlign: 'center', minHeight: '32px' }}>
+          {app && (
+            <div style={{
+              fontSize: '10px',
+              fontWeight: 600,
+              color: 'rgba(255, 255, 255, 0.5)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px',
+              marginBottom: '2px',
+            }}>
+              {app}
+            </div>
+          )}
+          <TickerText 
+            text={title} 
+            style={{
+              fontSize: '12px',
+              fontWeight: 500,
+              color: 'rgba(255, 255, 255, 0.9)',
+            }}
+          />
+        </div>
       </div>
-      <div style={{
-        fontSize: '12px',
-        fontWeight: 500,
-        color: 'rgba(255, 255, 255, 0.9)',
-        textAlign: 'center',
-        overflow: 'hidden',
-        textOverflow: 'ellipsis',
-        whiteSpace: 'nowrap',
-      }}>
-        {source.name}
-      </div>
-    </div>
-  )
+    )
+  }
 
   const Section = ({ title, items, icon }: { title: string, items: Source[], icon: string }) => (
     <div style={{ marginBottom: '32px' }}>
@@ -193,4 +277,3 @@ export function SourceSelector() {
     </div>
   )
 }
-

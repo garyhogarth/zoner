@@ -122,13 +122,12 @@ async function updateTrayMenu() {
                 })),
                 { type: 'separator' as const },
                 { label: '🪟 Windows', enabled: false },
-                ...windows.slice(0, 15).map(s => ({
-                    label: s.name.length > 40 ? s.name.substring(0, 40) + '...' : s.name,
+                ...windows.map(s => ({
+                    label: s.name.length > 50 ? s.name.substring(0, 50) + '...' : s.name,
                     type: 'radio' as const,
                     checked: s.id === currentSourceId,
                     click: () => navigateToSource(s.id)
-                })),
-                ...(windows.length > 15 ? [{ label: `...and ${windows.length - 15} more`, enabled: false }] : [])
+                }))
             ]
         },
         { type: 'separator' },

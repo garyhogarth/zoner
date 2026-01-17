@@ -410,7 +410,7 @@ export function Preview() {
                 <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
                   🪟 WINDOWS
                 </div>
-                {windows.slice(0, 10).map(s => (
+                {windows.map(s => (
                   <DropdownItem
                     key={s.id}
                     name={s.name}
@@ -419,11 +419,6 @@ export function Preview() {
                     onClick={() => handleSourceChange(s.id)}
                   />
                 ))}
-                {windows.length > 10 && (
-                  <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.3)' }}>
-                    ...and {windows.length - 10} more
-                  </div>
-                )}
               </div>
             )}
           </div>
