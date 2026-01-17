@@ -8,36 +8,7 @@ interface Source {
   appIcon?: string | null
 }
 
-// Parse source name into app and title
-function parseSourceName(source: Source): { app: string | null, title: string } {
-  if (source.id.startsWith('screen:')) {
-    // Screen names are usually like "Screen 1" or display names
-    return { app: null, title: source.name }
-  }
-  
-  // For windows, try to extract app name
-  // Common patterns: "App Name - Title" or just "Title"
-  const dashIndex = source.name.lastIndexOf(' - ')
-  if (dashIndex > 0) {
-    return {
-      app: source.name.substring(dashIndex + 3), // App is often at the end
-      title: source.name.substring(0, dashIndex)
-    }
-  }
-  
-  // No dash, check for common app patterns at start
-  const knownApps = ['Google Chrome', 'Safari', 'Firefox', 'VS Code', 'Code', 'Slack', 'Discord', 'Finder', 'Terminal', 'iTerm']
-  for (const app of knownApps) {
-    if (source.name.startsWith(app + ' ')) {
-      return { app, title: source.name.substring(app.length + 1) }
-    }
-    if (source.name === app) {
-      return { app, title: app }
-    }
-  }
-  
-  return { app: null, title: source.name }
-}
+
 
 // Ticker text component with marquee on hover
 function TickerText({ text, style }: { text: string, style?: React.CSSProperties }) {
@@ -107,7 +78,6 @@ export function SourceSelector() {
   const windows = sources.filter(s => s.id.startsWith('window:'))
 
   const SourceCard = ({ source }: { source: Source }) => {
-    const { app, title } = parseSourceName(source)
     
     return (
       <div 
@@ -152,26 +122,15 @@ export function SourceSelector() {
             }}
           />
         </div>
-        {/* 2-line name display */}
-        <div style={{ textAlign: 'center', minHeight: '32px' }}>
-          {app && (
-            <div style={{
-              fontSize: '10px',
-              fontWeight: 600,
-              color: 'rgba(255, 255, 255, 0.5)',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
-              marginBottom: '2px',
-            }}>
-              {app}
-            </div>
-          )}
+        {/* Name display */}
+        <div style={{ textAlign: 'center', minHeight: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <TickerText 
-            text={title} 
+            text={source.name} 
             style={{
               fontSize: '12px',
               fontWeight: 500,
               color: 'rgba(255, 255, 255, 0.9)',
+              width: '100%',
             }}
           />
         </div>
