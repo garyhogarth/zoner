@@ -1,31 +1,61 @@
 import { useState, useRef, useEffect } from 'react'
 import { Rnd } from 'react-rnd'
 
+interface Source {
+  id: string
+  name: string
+  thumbnail: string
+  appIcon?: string | null
+  instanceId?: string
+}
+
 export function Compositor() {
-  const [activeSources, setActiveSources] = useState<any[]>([])
-  const [pickerSources, setPickerSources] = useState<any[]>([])
+  const [activeSources, setActiveSources] = useState<Source[]>([])
+  const [pickerSources, setPickerSources] = useState<Source[]>([])
   const [showPicker, setShowPicker] = useState(false)
 
+  // Fetch sources on mount so they are available for switchers too
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        // @ts-ignore
+        const sources = await window.ipcRenderer.invoke('get-sources')
+        setPickerSources(sources)
+      } catch (e) {
+        console.error('Failed to get sources', e)
+      }
+    }
+    fetch()
+    const interval = setInterval(fetch, 5000) // Poll for new sources occasionally
+    return () => clearInterval(interval)
+  }, [])
+
   const handleOpenPicker = async () => {
+    // Refresh immediately on click
     try {
       // @ts-ignore
       const sources = await window.ipcRenderer.invoke('get-sources')
       setPickerSources(sources)
       setShowPicker(true)
-    } catch (e) {
-      console.error('Failed to get sources', e)
-    }
+    } catch (e) {}
   }
 
-  const handleAddSource = (source: any) => {
-    // Add unique ID to allow multiple instances of same source
-    const instanceId = Date.now().toString()
+  const handleAddSource = (source: Source) => {
+    const instanceId = Date.now().toString() + Math.random().toString().slice(2, 5)
     setActiveSources([...activeSources, { ...source, instanceId }])
     setShowPicker(false)
   }
 
   const handleDismissSource = (instanceId: string) => {
     setActiveSources(activeSources.filter(s => s.instanceId !== instanceId))
+  }
+
+  const handleSwitchSource = (instanceId: string, newSourceId: string) => {
+    const newSource = pickerSources.find(s => s.id === newSourceId)
+    if (!newSource) return
+    setActiveSources(activeSources.map(s => 
+      s.instanceId === instanceId ? { ...newSource, instanceId: s.instanceId } : s
+    ))
   }
 
   return (
@@ -65,7 +95,7 @@ export function Compositor() {
         </button>
       </header>
 
-      {/* Composition Area - Relative for Rnd positioning */}
+      {/* Composition Area */}
       <div style={{
         flex: 1,
         position: 'relative',
@@ -103,55 +133,22 @@ export function Compositor() {
               display: 'flex',
               flexDirection: 'column',
               background: '#000',
-              border: '1px solid #444',
-              borderRadius: '8px',
-              boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5)',
               overflow: 'hidden',
+              // No border radius or specific border requested, but minimal border helps visibility against dark bg
+              border: '1px solid #333',
             }}>
-              {/* Header / Drag Handle */}
-              <div 
-                className="drag-handle"
-                style={{
-                  padding: '6px 10px',
-                  background: '#222',
-                  borderBottom: '1px solid #333',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  cursor: 'move',
-                  userSelect: 'none',
-                }}
-              >
-                <div style={{ fontSize: '12px', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '80%' }}>
-                  {source.name}
-                </div>
-                <button 
-                  onClick={() => handleDismissSource(source.instanceId)}
-                  onMouseDown={e => e.stopPropagation()}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#888',
-                    cursor: 'pointer',
-                    fontSize: '14px',
-                    padding: '0 4px',
-                  }}
-                  title="Dismiss"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Content Area with Internal Pan/Zoom */}
-              <div style={{ flex: 1, position: 'relative', overflow: 'hidden' }}>
-                <ComposableSourceContent sourceId={source.id} />
-              </div>
+              <ComposableSourceContent 
+                source={source} 
+                availableSources={pickerSources}
+                onDismiss={() => handleDismissSource(source.instanceId!)}
+                onSwitch={(newId) => handleSwitchSource(source.instanceId!, newId)}
+              />
             </div>
           </Rnd>
         ))}
       </div>
 
-      {/* Source Picker Modal */}
+      {/* Source Picker Modal content same as before ... */}
       {showPicker && (
         <div style={{
           position: 'fixed',
@@ -213,10 +210,24 @@ export function Compositor() {
   )
 }
 
-function ComposableSourceContent({ sourceId }: { sourceId: string }) {
+function ComposableSourceContent({ 
+  source, 
+  availableSources, 
+  onDismiss, 
+  onSwitch 
+}: { 
+  source: Source, 
+  availableSources: Source[], 
+  onDismiss: () => void, 
+  onSwitch: (id: string) => void 
+}) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [scale, setScale] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [isHovered, setIsHovered] = useState(false)
+  const [showSwitcher, setShowSwitcher] = useState(false)
+  
+  // Internal pan state
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
 
@@ -229,17 +240,13 @@ function ComposableSourceContent({ sourceId }: { sourceId: string }) {
           video: {
             mandatory: {
               chromeMediaSource: 'desktop',
-              chromeMediaSourceId: sourceId,
+              chromeMediaSourceId: source.id,
             }
           } as any
         })
         if (videoRef.current) {
           videoRef.current.srcObject = stream
-          videoRef.current.onloadedmetadata = () => {
-             videoRef.current?.play()
-             setPan({ x: 0, y: 0 })
-             setScale(1 / (window.devicePixelRatio || 1))
-          }
+          videoRef.current.play()
         }
       } catch (e) {
         console.error('Stream failed', e)
@@ -249,11 +256,12 @@ function ComposableSourceContent({ sourceId }: { sourceId: string }) {
     return () => {
       stream?.getTracks().forEach(t => t.stop())
     }
-  }, [sourceId])
+  }, [source.id])
 
-
-
+  // Internal Pan logic
   const onMouseDown = (e: React.MouseEvent) => {
+    // Only pan if NOT clicking a button/interactive element
+    if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('.source-switcher')) return
     setIsDragging(true)
     dragStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
   }
@@ -271,10 +279,11 @@ function ComposableSourceContent({ sourceId }: { sourceId: string }) {
   return (
     <div 
       style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => { setIsHovered(false); setShowSwitcher(false); }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
-      onMouseLeave={onMouseUp}
     >
       <div style={{
           transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
@@ -288,23 +297,130 @@ function ComposableSourceContent({ sourceId }: { sourceId: string }) {
         />
       </div>
 
-       {/* Internal Controls Overlay */}
-       <div style={{
-         position: 'absolute',
-         bottom: '8px',
-         right: '8px',
-         display: 'flex',
-         gap: '4px',
-         background: 'rgba(0,0,0,0.6)',
-         borderRadius: '4px',
-         padding: '4px'
-       }}
-       onMouseDown={e => e.stopPropagation()} // Prevent pan drag start
-       >
-         <button onClick={() => setScale(s => Math.max(0.1, s - 0.1))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}>-</button>
-         <span style={{ fontSize: '10px', color: 'white', alignSelf: 'center' }}>{Math.round(scale * 100)}%</span>
-         <button onClick={() => setScale(s => Math.min(5, s + 0.1))} style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer' }}>+</button>
-       </div>
+      {/* Unified Toolbar (Top Center) */}
+      <div 
+        className="drag-handle"
+        style={{
+          position: 'absolute',
+          top: '8px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          background: 'rgba(0, 0, 0, 0.85)',
+          backdropFilter: 'blur(8px)',
+          padding: '6px 12px',
+          borderRadius: '9999px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          opacity: isHovered || showSwitcher ? 1 : 0,
+          transition: 'opacity 0.2s',
+          cursor: 'move', // Indicates drag-ability
+        }}
+        onMouseDown={e => {
+            // Allow drag unless clicking buttons
+            if ((e.target as HTMLElement).closest('button')) e.stopPropagation()
+        }}
+      >
+        {/* Source Name & Switcher */}
+        <div style={{ position: 'relative' }}>
+            <button 
+                onClick={() => setShowSwitcher(!showSwitcher)}
+                className="source-switcher"
+                style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'white',
+                    fontWeight: 500,
+                    fontSize: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    cursor: 'pointer',
+                    maxWidth: '120px',
+                }}
+            >
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {source.name}
+                </span>
+                <span style={{ fontSize: '8px' }}>▼</span>
+            </button>
+            
+            {showSwitcher && (
+                <div style={{
+                    position: 'absolute',
+                    top: '100%',
+                    left: 0,
+                    marginTop: '8px',
+                    width: '200px',
+                    maxHeight: '300px',
+                    overflowY: 'auto',
+                    background: '#1a1a1a',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    padding: '4px',
+                    zIndex: 200,
+                }} onMouseDown={e => e.stopPropagation()}>
+                    {/* Add basic search/list */}
+                    {availableSources.map(s => (
+                        <button
+                            key={s.id}
+                            onClick={() => { onSwitch(s.id); setShowSwitcher(false); }}
+                            style={{
+                                width: '100%',
+                                textAlign: 'left',
+                                padding: '6px 8px',
+                                background: s.id === source.id ? '#3b82f6' : 'transparent',
+                                border: 'none',
+                                color: 'white',
+                                fontSize: '11px',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                            }}
+                        >
+                            {s.appIcon ? <img src={s.appIcon} style={{ width: 12, height: 12 }} /> : <span>📺</span>}
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                        </button>
+                    ))}
+                </div>
+            )}
+        </div>
+
+        <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.2)' }} />
+
+        {/* Zoom Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button onClick={() => setScale(s => Math.max(0.1, s - 0.1))} style={{ color: 'white', background: 'rgba(255,255,255,0.1)', border: 'none', width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>-</button>
+            <span style={{ fontSize: '10px', color: '#ccc', minWidth: '28px', textAlign: 'center' }}>{Math.round(scale * 100)}%</span>
+            <button onClick={() => setScale(s => Math.min(5, s + 0.1))} style={{ color: 'white', background: 'rgba(255,255,255,0.1)', border: 'none', width: '20px', height: '20px', borderRadius: '50%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>+</button>
+        </div>
+
+        <div style={{ width: '1px', height: '14px', background: 'rgba(255,255,255,0.2)' }} />
+
+        {/* Close Button */}
+        <button 
+            onClick={onDismiss}
+            style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                color: '#fca5a5',
+                border: 'none',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                fontSize: '12px',
+            }}
+            title="Remove"
+        >
+            ✕
+        </button>
+      </div>
     </div>
   )
 }
