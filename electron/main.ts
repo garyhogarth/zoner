@@ -30,12 +30,16 @@ const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 
 // IPC Handlers
 ipcMain.handle('get-sources', async () => {
-    const sources = await desktopCapturer.getSources({ types: ['screen'], thumbnailSize: { width: 300, height: 200 } })
+    const sources = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 300, height: 200 } })
     return sources.map(source => ({
         id: source.id,
         name: source.name,
         thumbnail: source.thumbnail.toDataURL()
     }))
+})
+
+ipcMain.on('log', (event, ...args) => {
+    console.log('[Renderer]', ...args)
 })
 
 
