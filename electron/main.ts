@@ -11,6 +11,7 @@ process.env.DIST = DIST
 process.env.VITE_PUBLIC = VITE_PUBLIC
 
 let mainWindow: BrowserWindow | null = null
+let compositorWindow: BrowserWindow | null = null
 let tray: Tray | null = null
 
 // Track current source
@@ -99,6 +100,32 @@ function createMainWindow() {
     })
 }
 
+function createCompositorWindow() {
+    if (compositorWindow) {
+        compositorWindow.focus()
+        return
+    }
+
+    compositorWindow = new BrowserWindow({
+        width: 1000,
+        height: 700,
+        title: 'Compositor Prototype',
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.mjs'),
+        },
+    })
+
+    const url = VITE_DEV_SERVER_URL
+        ? `${VITE_DEV_SERVER_URL}#/compositor`
+        : `file://${path.join(DIST, 'index.html')}#/compositor`
+
+    compositorWindow.loadURL(url)
+
+    compositorWindow.on('closed', () => {
+        compositorWindow = null
+    })
+}
+
 async function updateTrayMenu() {
     if (!tray) return
 
@@ -146,6 +173,12 @@ async function updateTrayMenu() {
                 } else {
                     createMainWindow()
                 }
+            }
+        },
+        { type: 'separator' },
+        {
+            label: 'Open Multi-Window Prototype', click: () => {
+                createCompositorWindow()
             }
         },
         { type: 'separator' },

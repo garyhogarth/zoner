@@ -7,6 +7,7 @@ const VITE_PUBLIC = app.isPackaged ? DIST : path.join(__dirname$1, "../public");
 process.env.DIST = DIST;
 process.env.VITE_PUBLIC = VITE_PUBLIC;
 let mainWindow = null;
+let compositorWindow = null;
 let tray = null;
 let currentSourceId = null;
 let currentSourceName = null;
@@ -65,6 +66,25 @@ function createMainWindow() {
     mainWindow = null;
   });
 }
+function createCompositorWindow() {
+  if (compositorWindow) {
+    compositorWindow.focus();
+    return;
+  }
+  compositorWindow = new BrowserWindow({
+    width: 1e3,
+    height: 700,
+    title: "Compositor Prototype",
+    webPreferences: {
+      preload: path.join(__dirname$1, "preload.mjs")
+    }
+  });
+  const url = VITE_DEV_SERVER_URL ? `${VITE_DEV_SERVER_URL}#/compositor` : `file://${path.join(DIST, "index.html")}#/compositor`;
+  compositorWindow.loadURL(url);
+  compositorWindow.on("closed", () => {
+    compositorWindow = null;
+  });
+}
 async function updateTrayMenu() {
   if (!tray) return;
   await fetchSources();
@@ -108,6 +128,13 @@ async function updateTrayMenu() {
         } else {
           createMainWindow();
         }
+      }
+    },
+    { type: "separator" },
+    {
+      label: "Open Multi-Window Prototype",
+      click: () => {
+        createCompositorWindow();
       }
     },
     { type: "separator" },
