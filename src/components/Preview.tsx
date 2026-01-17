@@ -445,19 +445,6 @@ export function Preview() {
                 {/* Windows grouped by appIcon */}
                 {sortedIconKeys.map(iconKey => (
                   <div key={iconKey}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', marginTop: '4px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
-                      {iconKey !== 'no-icon' && groupedWindows[iconKey][0]?.appIcon && (
-                        <img 
-                          src={groupedWindows[iconKey][0].appIcon!} 
-                          alt="" 
-                          style={{ width: '14px', height: '14px', borderRadius: '3px' }}
-                        />
-                      )}
-                      {iconKey === 'no-icon' && <span style={{ fontSize: '12px' }}>🪟</span>}
-                      <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.3)' }}>
-                        ({groupedWindows[iconKey].length})
-                      </span>
-                    </div>
                     {groupedWindows[iconKey].map(s => (
                       <DropdownItem
                         key={s.id}
