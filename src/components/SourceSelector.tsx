@@ -36,10 +36,11 @@ export function SourceSelector() {
         cursor: 'pointer',
         backgroundColor: 'rgba(255, 255, 255, 0.05)',
         backdropFilter: 'blur(12px)',
-        borderRadius: '12px',
-        padding: '12px',
+        borderRadius: '10px',
+        padding: '10px',
         border: '1px solid rgba(255, 255, 255, 0.1)',
         transition: 'all 0.2s ease',
+        maxWidth: '200px',
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
@@ -52,19 +53,27 @@ export function SourceSelector() {
         e.currentTarget.style.transform = 'scale(1)'
       }}
     >
-      <img 
-        src={source.thumbnail} 
-        alt={source.name}
-        style={{
-          width: '100%',
-          height: 'auto',
-          borderRadius: '8px',
-          marginBottom: '8px',
-          opacity: 0.9,
-        }}
-      />
       <div style={{
-        fontSize: '13px',
+        width: '100%',
+        height: '100px',
+        borderRadius: '6px',
+        overflow: 'hidden',
+        marginBottom: '8px',
+        backgroundColor: 'rgba(0,0,0,0.3)',
+      }}>
+        <img 
+          src={source.thumbnail} 
+          alt={source.name}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            opacity: 0.9,
+          }}
+        />
+      </div>
+      <div style={{
+        fontSize: '12px',
         fontWeight: 500,
         color: 'rgba(255, 255, 255, 0.9)',
         textAlign: 'center',
@@ -111,8 +120,8 @@ export function SourceSelector() {
       {items.length > 0 ? (
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-          gap: '16px',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 200px))',
+          gap: '12px',
         }}>
           {items.map(source => (
             <SourceCard key={source.id} source={source} />

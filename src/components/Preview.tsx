@@ -7,8 +7,8 @@ interface Source {
   thumbnail: string
 }
 
-// Dropdown item with truncation + marquee on hover
-function DropdownItem({ name, isActive, onClick }: { name: string, isActive: boolean, onClick: () => void }) {
+// Dropdown item with truncation + marquee on hover + thumbnail
+function DropdownItem({ name, thumbnail, isActive, onClick }: { name: string, thumbnail?: string, isActive: boolean, onClick: () => void }) {
   const [isHovered, setIsHovered] = useState(false)
   const textRef = useRef<HTMLSpanElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -26,24 +26,48 @@ function DropdownItem({ name, isActive, onClick }: { name: string, isActive: boo
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       style={{
-        display: 'block',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
         width: '100%',
-        padding: '8px 12px',
+        padding: '6px 12px',
         textAlign: 'left',
         background: isActive ? 'rgba(59, 130, 246, 0.3)' : isHovered ? 'rgba(255,255,255,0.1)' : 'transparent',
         border: 'none',
         color: 'white',
-        fontSize: '13px',
+        fontSize: '12px',
         cursor: 'pointer',
         overflow: 'hidden',
       }}
     >
+      {/* Thumbnail */}
+      {thumbnail && (
+        <div style={{
+          width: '28px',
+          height: '28px',
+          flexShrink: 0,
+          borderRadius: '4px',
+          overflow: 'hidden',
+          backgroundColor: 'rgba(0,0,0,0.5)',
+        }}>
+          <img 
+            src={thumbnail} 
+            alt=""
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        </div>
+      )}
       <div 
         ref={containerRef}
         style={{ 
           overflow: 'hidden', 
           position: 'relative',
-          maxWidth: '180px',
+          maxWidth: '140px',
+          flex: 1,
         }}
       >
         <span
@@ -374,6 +398,7 @@ export function Preview() {
                   <DropdownItem
                     key={s.id}
                     name={s.name}
+                    thumbnail={s.thumbnail}
                     isActive={s.id === sourceId}
                     onClick={() => handleSourceChange(s.id)}
                   />
@@ -389,6 +414,7 @@ export function Preview() {
                   <DropdownItem
                     key={s.id}
                     name={s.name}
+                    thumbnail={s.thumbnail}
                     isActive={s.id === sourceId}
                     onClick={() => handleSourceChange(s.id)}
                   />
