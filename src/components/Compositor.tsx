@@ -322,6 +322,18 @@ function ComposableSourceContent({
             if ((e.target as HTMLElement).closest('button')) e.stopPropagation()
         }}
       >
+        {/* Grip Handle */}
+        <div style={{ color: 'rgba(255,255,255,0.4)', marginRight: '4px', display: 'flex', alignItems: 'center' }}>
+          <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor">
+            <circle cx="1.5" cy="1.5" r="1.5" />
+            <circle cx="1.5" cy="5" r="1.5" />
+            <circle cx="1.5" cy="8.5" r="1.5" />
+            <circle cx="4.5" cy="1.5" r="1.5" />
+            <circle cx="4.5" cy="5" r="1.5" />
+            <circle cx="4.5" cy="8.5" r="1.5" />
+          </svg>
+        </div>
+
         {/* Source Name & Switcher */}
         <div style={{ position: 'relative' }}>
             <button 
