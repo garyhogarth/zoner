@@ -224,6 +224,107 @@ export function SourceSelector() {
     </div>
   )
 
+  // Group windows by app name
+  const groupedWindows = windows.reduce((groups, source) => {
+    const { app } = parseSourceName(source)
+    const groupName = app || 'Other'
+    if (!groups[groupName]) {
+      groups[groupName] = []
+    }
+    groups[groupName].push(source)
+    return groups
+  }, {} as Record<string, Source[]>)
+
+  // Sort groups alphabetically, with 'Other' at the end
+  const sortedAppNames = Object.keys(groupedWindows).sort((a, b) => {
+    if (a === 'Other') return 1
+    if (b === 'Other') return -1
+    return a.localeCompare(b)
+  })
+
+  const GroupedWindowsSection = () => (
+    <div style={{ marginBottom: '32px' }}>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '8px',
+        marginBottom: '16px',
+        paddingLeft: '4px',
+      }}>
+        <span style={{ fontSize: '20px' }}>🪟</span>
+        <h2 style={{
+          fontSize: '16px',
+          fontWeight: 600,
+          color: 'rgba(255, 255, 255, 0.7)',
+          margin: 0,
+          letterSpacing: '0.5px',
+          textTransform: 'uppercase',
+        }}>
+          Windows
+        </h2>
+        <span style={{
+          fontSize: '12px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+          padding: '2px 8px',
+          borderRadius: '9999px',
+          color: 'rgba(255, 255, 255, 0.5)',
+        }}>
+          {windows.length}
+        </span>
+      </div>
+      
+      {windows.length > 0 ? (
+        <div>
+          {sortedAppNames.map(appName => (
+            <div key={appName} style={{ marginBottom: '20px' }}>
+              {/* App header */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginBottom: '10px',
+                paddingLeft: '8px',
+              }}>
+                <div style={{
+                  fontSize: '13px',
+                  fontWeight: 600,
+                  color: 'rgba(255, 255, 255, 0.6)',
+                }}>
+                  {appName}
+                </div>
+                <div style={{
+                  fontSize: '11px',
+                  color: 'rgba(255, 255, 255, 0.3)',
+                }}>
+                  ({groupedWindows[appName].length})
+                </div>
+              </div>
+              {/* Windows grid for this app */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 200px))',
+                gap: '12px',
+              }}>
+                {groupedWindows[appName].map(source => (
+                  <SourceCard key={source.id} source={source} />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{
+          padding: '24px',
+          textAlign: 'center',
+          color: 'rgba(255, 255, 255, 0.4)',
+          fontSize: '14px',
+        }}>
+          No windows available
+        </div>
+      )}
+    </div>
+  )
+
   return (
     <div style={{
       minHeight: '100vh',
@@ -262,7 +363,7 @@ export function SourceSelector() {
       {/* Content */}
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <Section title="Screens" items={screens} icon="🖥️" />
-        <Section title="Windows" items={windows} icon="🪟" />
+        <GroupedWindowsSection />
       </div>
 
       {/* Footer hint */}
@@ -277,3 +378,4 @@ export function SourceSelector() {
     </div>
   )
 }
+

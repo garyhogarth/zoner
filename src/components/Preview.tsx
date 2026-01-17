@@ -7,6 +7,21 @@ interface Source {
   thumbnail: string
 }
 
+// Parse source name into app and title
+function parseSourceName(source: Source): { app: string | null, title: string } {
+  if (source.id.startsWith('screen:')) {
+    return { app: null, title: source.name }
+  }
+  const dashIndex = source.name.lastIndexOf(' - ')
+  if (dashIndex > 0) {
+    return {
+      app: source.name.substring(dashIndex + 3),
+      title: source.name.substring(0, dashIndex)
+    }
+  }
+  return { app: null, title: source.name }
+}
+
 // Dropdown item with truncation + marquee on hover + thumbnail
 function DropdownItem({ name, thumbnail, isActive, onClick }: { name: string, thumbnail?: string, isActive: boolean, onClick: () => void }) {
   const [isHovered, setIsHovered] = useState(false)
@@ -201,6 +216,20 @@ export function Preview() {
 
   const screens = sources.filter(s => s.id.startsWith('screen:'))
   const windows = sources.filter(s => s.id.startsWith('window:'))
+
+  // Group windows by app
+  const groupedWindows = windows.reduce((groups, source) => {
+    const { app } = parseSourceName(source)
+    const groupName = app || 'Other'
+    if (!groups[groupName]) groups[groupName] = []
+    groups[groupName].push(source)
+    return groups
+  }, {} as Record<string, Source[]>)
+  const sortedApps = Object.keys(groupedWindows).sort((a, b) => {
+    if (a === 'Other') return 1
+    if (b === 'Other') return -1
+    return a.localeCompare(b)
+  })
 
   return (
     <div 
@@ -406,18 +435,24 @@ export function Preview() {
                 
                 <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
                 
-                {/* Windows */}
-                <div style={{ padding: '4px 12px', fontSize: '11px', color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>
-                  🪟 WINDOWS
-                </div>
-                {windows.map(s => (
-                  <DropdownItem
-                    key={s.id}
-                    name={s.name}
-                    thumbnail={s.thumbnail}
-                    isActive={s.id === sourceId}
-                    onClick={() => handleSourceChange(s.id)}
-                  />
+                {/* Windows grouped by app */}
+                {sortedApps.map(appName => (
+                  <div key={appName}>
+                    <div style={{ padding: '4px 12px', marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.1)' }}>
+                      <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', fontWeight: 600, textTransform: 'uppercase' }}>
+                        {appName}
+                      </div>
+                    </div>
+                    {groupedWindows[appName].map(s => (
+                      <DropdownItem
+                        key={s.id}
+                        name={parseSourceName(s).title}
+                        thumbnail={s.thumbnail}
+                        isActive={s.id === sourceId}
+                        onClick={() => handleSourceChange(s.id)}
+                      />
+                    ))}
+                  </div>
                 ))}
               </div>
             )}
