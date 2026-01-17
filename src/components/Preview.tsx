@@ -170,6 +170,9 @@ export function Preview() {
   useEffect(() => {
     if (!sourceId) return
 
+    let currentStream: MediaStream | null = null
+    let isActive = true
+
     const startStream = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -182,6 +185,13 @@ export function Preview() {
           } as any
         })
 
+        if (!isActive) {
+          stream.getTracks().forEach(track => track.stop())
+          return
+        }
+
+        currentStream = stream
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream
           videoRef.current.onloadedmetadata = () => {
@@ -191,12 +201,24 @@ export function Preview() {
           }
         }
       } catch (e) {
-        console.error('Stream error:', e)
-        alert('Failed to get stream. Check permissions.')
+        if (isActive) {
+          console.error('Stream error:', e)
+          alert('Failed to get stream. Check permissions.')
+        }
       }
     }
 
     startStream()
+
+    return () => {
+      isActive = false
+      if (currentStream) {
+        currentStream.getTracks().forEach(track => track.stop())
+      }
+      if (videoRef.current) {
+        videoRef.current.srcObject = null
+      }
+    }
   }, [sourceId])
 
   const handleMouseDown = (e: React.MouseEvent) => {
