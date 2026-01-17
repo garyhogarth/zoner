@@ -5,6 +5,7 @@ interface Source {
   id: string
   name: string
   thumbnail: string
+  appIcon?: string | null
 }
 
 // Parse source name into app and title

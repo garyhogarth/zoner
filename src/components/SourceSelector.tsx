@@ -5,6 +5,7 @@ interface Source {
   id: string
   name: string
   thumbnail: string
+  appIcon?: string | null
 }
 
 // Parse source name into app and title
@@ -285,6 +286,14 @@ export function SourceSelector() {
                 marginBottom: '10px',
                 paddingLeft: '8px',
               }}>
+                {/* App icon */}
+                {groupedWindows[appName][0]?.appIcon && (
+                  <img 
+                    src={groupedWindows[appName][0].appIcon} 
+                    alt="" 
+                    style={{ width: '18px', height: '18px', borderRadius: '4px' }}
+                  />
+                )}
                 <div style={{
                   fontSize: '13px',
                   fontWeight: 600,

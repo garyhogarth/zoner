@@ -24,6 +24,7 @@ interface Source {
     id: string
     name: string
     thumbnail: string
+    appIcon: string | null
 }
 let cachedSources: Source[] = []
 
@@ -31,12 +32,14 @@ let cachedSources: Source[] = []
 async function fetchSources(): Promise<Source[]> {
     const sources = await desktopCapturer.getSources({
         types: ['screen', 'window'],
-        thumbnailSize: { width: 300, height: 200 }
+        thumbnailSize: { width: 300, height: 200 },
+        fetchWindowIcons: true // Get app icons!
     })
     cachedSources = sources.map(source => ({
         id: source.id,
         name: source.name,
-        thumbnail: source.thumbnail.toDataURL()
+        thumbnail: source.thumbnail.toDataURL(),
+        appIcon: source.appIcon ? source.appIcon.toDataURL() : null
     }))
     return cachedSources
 }
