@@ -694,7 +694,6 @@ function ComposableSourceContent({
   onScaleChange,
   onPanChange,
   onNativeDimensions,
-  isWindowFocused,
   isHovered,
   isModifierPressed
 }: { 
