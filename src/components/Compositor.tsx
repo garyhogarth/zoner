@@ -3,7 +3,7 @@ import { Rnd } from 'react-rnd'
 
 import { SourcePicker } from './SourcePicker'
 import { fetchUnifiedSources, type Source } from '../utils/sources'
-import { SourceToolbar, type LayoutType, type ViewMode } from './SourceToolbar'
+import { SourceControls, type LayoutType, type ViewMode } from './SourceToolbar'
 import { CompositorToolbar } from './CompositorToolbar'
 import { 
   loadLayouts, 
@@ -727,9 +727,8 @@ function ComposableSourceContent({
         )}
       </div>
 
-      <SourceToolbar 
+      <SourceControls 
         sourceName={source.name}
-        className="drag-handle"
         scale={scale}
         onScaleChange={onScaleChange}
         onDismiss={onDismiss}
@@ -739,12 +738,6 @@ function ComposableSourceContent({
         onViewModeChange={onViewModeChange}
         visible={isWindowFocused}
         availableSources={availableSources}
-        style={{
-            position: 'absolute',
-            top: '8px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-        }}
       />
     </div>
   )
