@@ -68,3 +68,11 @@ Releases are automated via GitHub Actions.
 - **Tech Stack**: Electron, React, TypeScript, Vite.
 - **State**: LocalStorage persistence for window layouts.
 - **Capture**: Uses `desktopCapturer` and `getUserMedia` for low-latency mirroring.
+
+## Troubleshooting
+
+### "Zoner can't be opened because Apple cannot check it for malicious software"
+Since we are not notarizing the app (requires a paid Apple Developer account), macOS will show this warning for downloaded releases. To open the app:
+1.  **Right-click** (or Ctrl+Click) the `Zoner.app`.
+2.  Select **Open** from the menu.
+3.  Click **Open** in the dialog box that appears.

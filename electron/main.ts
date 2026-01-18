@@ -91,7 +91,8 @@ function createMainWindow() {
     mainWindow = new BrowserWindow({
         width: 800,
         height: 600,
-        title: 'Sub-Screen',
+        title: 'Zoner',
+        backgroundColor: '#000000',
         webPreferences: {
             preload: path.join(__dirname, 'preload.mjs'),
             backgroundThrottling: false,
@@ -118,7 +119,8 @@ function createCompositorWindow() {
     compositorWindow = new BrowserWindow({
         width: 1000,
         height: 700,
-        title: 'Compositor Prototype',
+        title: 'Zoner Compositor',
+        backgroundColor: '#000000',
         webPreferences: {
             preload: path.join(__dirname, 'preload.mjs'),
             backgroundThrottling: false,
@@ -187,7 +189,7 @@ async function updateTrayMenu() {
         },
         { type: 'separator' },
         {
-            label: 'Open Multi-Window Prototype', click: () => {
+            label: 'Open Zoner Compositor', click: () => {
                 createCompositorWindow()
             }
         },
@@ -212,7 +214,7 @@ function createTray() {
     trayIcon.setTemplateImage(true)
 
     tray = new Tray(trayIcon)
-    tray.setToolTip('Sub-Screen')
+    tray.setToolTip('Zoner')
 
     updateTrayMenu()
 }
