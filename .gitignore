@@ -14,6 +14,8 @@ dist-ssr
 *.local
 release/
 coverage/
+dist-electron
+
 
 # Editor directories and files
 .vscode/*

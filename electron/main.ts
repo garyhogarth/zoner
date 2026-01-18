@@ -10,6 +10,9 @@ const VITE_PUBLIC = app.isPackaged ? DIST : path.join(__dirname, '../public')
 process.env.DIST = DIST
 process.env.VITE_PUBLIC = VITE_PUBLIC
 
+// Disable hardware acceleration to fix screen capture "frosted glass" issues
+app.disableHardwareAcceleration()
+
 let mainWindow: BrowserWindow | null = null
 let compositorWindow: BrowserWindow | null = null
 let tray: Tray | null = null
@@ -88,26 +91,26 @@ function createMainWindow() {
         return
     }
 
-    mainWindow = new BrowserWindow({
-        width: 800,
+    width: 800,
         height: 600,
-        title: 'Zoner',
-        backgroundColor: '#000000',
-        webPreferences: {
-            preload: path.join(__dirname, 'preload.mjs'),
+            title: 'Zoner',
+                backgroundColor: '#000000',
+                    hasShadow: false,
+                        webPreferences: {
+        preload: path.join(__dirname, 'preload.mjs'),
             backgroundThrottling: false,
         },
-    })
+})
 
-    const url = VITE_DEV_SERVER_URL
-        ? `${VITE_DEV_SERVER_URL}#/`
-        : `file://${path.join(DIST, 'index.html')}#/`
+const url = VITE_DEV_SERVER_URL
+    ? `${VITE_DEV_SERVER_URL}#/`
+    : `file://${path.join(DIST, 'index.html')}#/`
 
-    mainWindow.loadURL(url)
+mainWindow.loadURL(url)
 
-    mainWindow.on('closed', () => {
-        mainWindow = null
-    })
+mainWindow.on('closed', () => {
+    mainWindow = null
+})
 }
 
 function createCompositorWindow() {
@@ -121,6 +124,7 @@ function createCompositorWindow() {
         height: 700,
         title: 'Zoner Compositor',
         backgroundColor: '#000000',
+        hasShadow: false,
         webPreferences: {
             preload: path.join(__dirname, 'preload.mjs'),
             backgroundThrottling: false,
