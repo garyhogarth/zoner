@@ -1,4 +1,5 @@
 import type { ViewMode } from '../components/SourceToolbar'
+import { getStoredTheme, type ThemeId } from './themeStore'
 
 // Types for saved layouts
 export interface SavedSourceState {
@@ -20,6 +21,7 @@ export interface SavedLayout {
     createdAt: number
     windowSize: { width: number; height: number }
     sources: SavedSourceState[]
+    theme?: ThemeId
 }
 
 const STORAGE_KEY = 'compositor-layouts'
@@ -50,6 +52,7 @@ export function saveLayout(
         createdAt: Date.now(),
         windowSize,
         sources,
+        theme: getStoredTheme(), // Capture current theme
     }
 
     layouts.push(newLayout)

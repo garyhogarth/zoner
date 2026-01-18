@@ -15,6 +15,7 @@ import {
   type SavedLayout,
   type SavedSourceState 
 } from '../utils/layoutStore'
+import { setTheme, initTheme } from '../utils/themeStore'
 
 interface ComposableSource extends Source {
   instanceId?: string
@@ -91,6 +92,10 @@ export function Compositor() {
     }
     fetch()
     const interval = setInterval(fetch, 5000) // Poll for new sources occasionally
+    
+    // Init theme
+    initTheme()
+    
     return () => clearInterval(interval)
   }, [])
 
@@ -386,6 +391,15 @@ export function Compositor() {
       }
     })
 
+    // Apply saved theme if exists
+    if (layout.theme) {
+      setTheme(layout.theme)
+      // Force toolbar re-render? The toolbar reads from local state or needs prop? 
+      // The toolbar keeps its own state `currentTheme`. We should lift it or key it.
+      // But `setTheme` is global. We should probably force a refresh.
+      // Easiest is to add `key` to toolbar or pass current theme as prop.
+    }
+
     setActiveSources(restored)
   }
 
@@ -420,7 +434,7 @@ export function Compositor() {
   const sortedSources = [...activeSources].sort((a, b) => a.layerOrder - b.layerOrder)
 
   return (
-    <div className="w-screen h-screen bg-[#111] text-white flex flex-col overflow-hidden">
+    <div className="w-screen h-screen bg-background text-foreground flex flex-col overflow-hidden transition-colors duration-500">
       {/* Unified Toolbar */}
       <CompositorToolbar
         visible={isFocused}
@@ -442,7 +456,7 @@ export function Compositor() {
       />
 
       {/* Composition Area */}
-      <div className="flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_#222_0%,_#111_100%)]">
+      <div className="flex-1 relative overflow-hidden bg-radial-theme transition-[background] duration-500">
         {activeSources.length === 0 && !showPicker && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#555]">
             Click "+" to add a window

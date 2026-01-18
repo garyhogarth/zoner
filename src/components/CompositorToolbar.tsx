@@ -35,6 +35,8 @@ interface CompositorToolbarProps {
 type MenuState = 'layers' | 'settings' | null
 type SettingsSubmenu = 'main' | 'layouts' | 'theme'
 
+import { getStoredTheme, setTheme, THEMES, type ThemeId } from '../utils/themeStore'
+
 export function CompositorToolbar({
   visible,
   layers,
@@ -49,6 +51,7 @@ export function CompositorToolbar({
 }: CompositorToolbarProps) {
   const [activeMenu, setActiveMenu] = useState<MenuState>(null)
   const [settingsView, setSettingsView] = useState<SettingsSubmenu>('main')
+  const [currentTheme, setCurrentTheme] = useState<ThemeId>(getStoredTheme())
   const [isHovered, setIsHovered] = useState(false)
   
   // Refs
@@ -69,6 +72,11 @@ export function CompositorToolbar({
   }>({ isOpen: false, type: 'delete', layoutId: '', layoutName: '' })
 
   const isVisible = visible || isHovered || activeMenu !== null
+
+  const handleSetTheme = (id: ThemeId) => {
+    setTheme(id)
+    setCurrentTheme(id)
+  }
 
   const handleSaveNew = () => {
     if (saveName.trim()) {
@@ -143,17 +151,7 @@ export function CompositorToolbar({
       >
         {/* Main Toolbar */}
         <div className="flex gap-1 p-1.5 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl">
-          <Tooltip content="Add Source" side="right">
-            <IconButton onClick={onAddSource} variant="ghost" className="text-white hover:bg-white/10">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </IconButton>
-          </Tooltip>
-
-          <div className="w-px bg-white/10 my-1" />
-
-          {/* Settings (First Option, Hamburger) */}
+          {/* Settings (Hamburger) */}
           <Tooltip content="Menu" side="right">
             <IconButton 
               ref={settingsRef}
@@ -167,6 +165,17 @@ export function CompositorToolbar({
               {/* Hamburger Icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </IconButton>
+          </Tooltip>
+
+          <div className="w-px bg-white/10 my-1" />
+
+          {/* Add Source */}
+          <Tooltip content="Add Source" side="right">
+            <IconButton onClick={onAddSource} variant="ghost" className="text-white hover:bg-white/10">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
               </svg>
             </IconButton>
           </Tooltip>
@@ -408,9 +417,15 @@ export function CompositorToolbar({
                 className="sticky top-0 bg-zinc-900 border-b border-white/10 z-10"
               />
               <MenuHeader>Theme</MenuHeader>
-              <MenuItem label="Dark" icon="🌙" active />
-              <MenuItem label="Light" icon="☀️" disabled />
-              <MenuItem label="System" icon="💻" disabled />
+              {THEMES.map(theme => (
+                <MenuItem 
+                  key={theme.id}
+                  label={theme.name} 
+                  icon={currentTheme === theme.id ? "✓" : <span className={`w-3 h-3 rounded-full bg-${theme.id === 'zinc' ? 'zinc-500' : theme.id === 'orange' ? 'orange-500' : `${theme.id}-600`}`} />}
+                  active={currentTheme === theme.id}
+                  onClick={() => handleSetTheme(theme.id)}
+                />
+              ))}
             </>
           ) : null}
         </Menu>
