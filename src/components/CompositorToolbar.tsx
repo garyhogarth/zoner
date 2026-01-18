@@ -1,5 +1,11 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import type { SavedLayout } from '../utils/layoutStore'
+import { IconButton, Button } from './ui/Button'
+import { Menu, MenuItem, MenuHeader, MenuSeparator } from './ui/Menu'
+import { Tooltip } from './ui/Tooltip'
+import { ConfirmDialog } from './ui/Dialog'
+import { exportLayoutAsJson, importLayoutFromJson } from '../utils/layoutIO'
+import { clsx } from 'clsx'
 
 interface LayerItem {
   instanceId: string
@@ -22,9 +28,12 @@ interface CompositorToolbarProps {
   onDeleteLayout: (layoutId: string) => void
   // Add Source
   onAddSource: () => void
+  // Refresh Layouts (needed for import)
+  onLayoutsChanged?: () => void
 }
 
-type PanelType = 'layers' | 'layouts' | null
+type MenuState = 'layers' | 'settings' | null
+type SettingsSubmenu = 'main' | 'layouts' | 'theme'
 
 export function CompositorToolbar({
   visible,
@@ -36,16 +45,32 @@ export function CompositorToolbar({
   onLoadLayout,
   onDeleteLayout,
   onAddSource,
+  onLayoutsChanged
 }: CompositorToolbarProps) {
-  const [activePanel, setActivePanel] = useState<PanelType>(null)
+  const [activeMenu, setActiveMenu] = useState<MenuState>(null)
+  const [settingsView, setSettingsView] = useState<SettingsSubmenu>('main')
   const [isHovered, setIsHovered] = useState(false)
-  const [showSaveInput, setShowSaveInput] = useState(false)
+  
+  // Refs
+  const layersRef = useRef<HTMLButtonElement>(null)
+  const settingsRef = useRef<HTMLButtonElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Layout Save State
   const [saveName, setSaveName] = useState('')
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+  const [showSaveInput, setShowSaveInput] = useState(false)
+  
+  // Dialog State
+  const [confirmDialog, setConfirmDialog] = useState<{
+    isOpen: boolean
+    type: 'delete' | 'overwrite'
+    layoutId: string
+    layoutName: string
+  }>({ isOpen: false, type: 'delete', layoutId: '', layoutName: '' })
 
-  const isVisible = visible || isHovered || activePanel !== null
+  const isVisible = visible || isHovered || activeMenu !== null
 
-  const handleSave = () => {
+  const handleSaveNew = () => {
     if (saveName.trim()) {
       onSaveLayout(saveName.trim())
       setSaveName('')
@@ -53,14 +78,47 @@ export function CompositorToolbar({
     }
   }
 
-  const handleDelete = (id: string) => {
-    if (confirmDelete === id) {
-      onDeleteLayout(id)
-      setConfirmDelete(null)
-    } else {
-      setConfirmDelete(id)
-      setTimeout(() => setConfirmDelete(null), 3000)
+  const handleImport = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      importLayoutFromJson(e.target.files[0], (success, msg) => {
+        if (success) {
+          onLayoutsChanged?.()
+          // Maybe show a toast? For now just refresh list.
+        } else {
+          alert(msg) // Simple fallback
+        }
+      })
     }
+    // Reset input
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const promptOverwrite = (layout: SavedLayout) => {
+    setConfirmDialog({
+      isOpen: true,
+      type: 'overwrite',
+      layoutId: layout.id,
+      layoutName: layout.name
+    })
+  }
+
+  const promptDelete = (layout: SavedLayout) => {
+    setConfirmDialog({
+      isOpen: true,
+      type: 'delete',
+      layoutId: layout.id,
+      layoutName: layout.name
+    })
+  }
+
+  const handleConfirmAction = () => {
+    if (confirmDialog.type === 'delete') {
+      onDeleteLayout(confirmDialog.layoutId)
+    } else if (confirmDialog.type === 'overwrite') {
+      onDeleteLayout(confirmDialog.layoutId)
+      onSaveLayout(confirmDialog.layoutName)
+    }
+    setConfirmDialog({ ...confirmDialog, isOpen: false })
   }
 
   const formatDate = (timestamp: number) => {
@@ -70,357 +128,347 @@ export function CompositorToolbar({
     })
   }
 
-  // Sort layers by order (highest = front)
+  // Sort layers
   const sortedLayers = [...layers].sort((a, b) => b.layerOrder - a.layerOrder)
 
-  const togglePanel = (panel: PanelType) => {
-    setActivePanel(activePanel === panel ? null : panel)
-    setShowSaveInput(false)
-  }
-
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: '16px',
-        left: '16px',
-        zIndex: 100,
-      }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => { 
-        setIsHovered(false)
-        if (!activePanel) {
-          setShowSaveInput(false)
-        }
-      }}
-    >
-      {/* Icon Bar */}
+    <>
       <div
-        style={{
-          display: 'flex',
-          gap: '4px',
-          padding: '6px',
-          backgroundColor: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 0.2s ease',
-          pointerEvents: isVisible ? 'auto' : 'none',
-        }}
+        className={clsx(
+          "fixed top-4 left-4 z-50 flex flex-col gap-2 transition-opacity duration-200",
+          isVisible ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+        )}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Add Source */}
-        <button
-          onClick={onAddSource}
-          style={buttonStyle(false)}
-          title="Add Source"
-        >
-          <span style={{ fontSize: '18px', fontWeight: 300 }}>+</span>
-        </button>
+        {/* Main Toolbar */}
+        <div className="flex gap-1 p-1.5 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl">
+          <Tooltip content="Add Source" side="right">
+            <IconButton onClick={onAddSource} variant="ghost" className="text-white hover:bg-white/10">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </IconButton>
+          </Tooltip>
 
-        {/* Layers */}
-        <button
-          onClick={() => togglePanel('layers')}
-          style={buttonStyle(activePanel === 'layers')}
-          title="Layers"
-        >
-          <span style={{ fontSize: '16px' }}>☰</span>
-        </button>
+          <div className="w-px bg-white/10 my-1" />
 
-        {/* Layouts */}
-        <button
-          onClick={() => togglePanel('layouts')}
-          style={buttonStyle(activePanel === 'layouts')}
-          title="Saved Layouts"
-        >
-          <span style={{ fontSize: '14px' }}>💾</span>
-        </button>
-      </div>
+          {/* Settings (First Option, Hamburger) */}
+          <Tooltip content="Menu" side="right">
+            <IconButton 
+              ref={settingsRef}
+              onClick={() => {
+                setActiveMenu(activeMenu === 'settings' ? null : 'settings')
+                setSettingsView('main')
+              }}
+              variant={activeMenu === 'settings' ? 'solid' : 'ghost'}
+              className={activeMenu === 'settings' ? 'bg-blue-500/20 text-blue-400' : 'text-white/70 hover:text-white'}
+            >
+              {/* Hamburger Icon */}
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 12h18M3 6h18M3 18h18" />
+              </svg>
+            </IconButton>
+          </Tooltip>
 
-      {/* Layers Panel */}
-      {activePanel === 'layers' && (
-        <div style={panelStyle}>
-          <div style={panelHeaderStyle}>
-            Layers ({layers.length})
-            <button onClick={() => setActivePanel(null)} style={closeButtonStyle}>✕</button>
-          </div>
-          <div style={{ padding: '8px', maxHeight: '300px', overflowY: 'auto' }}>
-            {sortedLayers.length === 0 ? (
-              <div style={emptyStyle}>No sources added</div>
-            ) : (
-              sortedLayers.map((layer, index) => (
-                <div
+          {/* Layers */}
+          <Tooltip content="Layers" side="right">
+            <IconButton 
+              ref={layersRef}
+              onClick={() => {
+                setActiveMenu(activeMenu === 'layers' ? null : 'layers')
+                setSettingsView('main')
+              }}
+              variant={activeMenu === 'layers' ? 'solid' : 'ghost'}
+              className={activeMenu === 'layers' ? 'bg-blue-500/20 text-blue-400' : 'text-white/70 hover:text-white'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
+            </IconButton>
+          </Tooltip>
+        </div>
+
+        {/* Layers Menu */}
+        <Menu 
+          isOpen={activeMenu === 'layers'} 
+          onClose={() => setActiveMenu(null)} 
+          triggerRef={layersRef}
+          placement="bottom-start"
+          className="w-64 max-h-[400px] overflow-y-auto"
+        >
+          <MenuHeader>Layers ({layers.length})</MenuHeader>
+          {sortedLayers.length === 0 ? (
+            <div className="px-4 py-8 text-center text-zinc-500 text-xs">No active sources</div>
+          ) : (
+            <div className="px-1 space-y-0.5">
+              {sortedLayers.map((layer, index) => (
+                <div 
                   key={layer.instanceId}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    marginBottom: '4px',
-                    backgroundColor: layer.isMissing
-                      ? 'rgba(239, 68, 68, 0.1)'
-                      : 'rgba(255, 255, 255, 0.05)',
-                  }}
-                >
-                  <span style={layerNumberStyle}>{layers.length - index}</span>
-                  {layer.appIcon ? (
-                    <img src={layer.appIcon} alt="" style={{ width: 14, height: 14, borderRadius: 2 }} />
-                  ) : (
-                    <span style={{ fontSize: '12px' }}>{layer.isMissing ? '⚠️' : '📺'}</span>
+                  className={clsx(
+                    "group flex items-center gap-2 px-2 py-1.5 rounded hover:bg-white/5 transition-colors",
+                    layer.isMissing && "bg-red-500/10"
                   )}
-                  <span style={{
-                    flex: 1,
-                    fontSize: '11px',
-                    color: layer.isMissing ? '#fca5a5' : 'white',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}>
+                >
+                  <div className="w-5 h-5 flex items-center justify-center bg-white/5 rounded text-[10px] text-zinc-500 shrink-0">
+                    {layers.length - index}
+                  </div>
+                  
+                  <div className="w-4 h-4 shrink-0 flex items-center justify-center">
+                    {layer.appIcon ? (
+                      <img src={layer.appIcon} className="w-3.5 h-3.5 rounded-sm" />
+                    ) : (
+                      <span className="text-xs">📺</span>
+                    )}
+                  </div>
+
+                  <span className={clsx("flex-1 text-xs truncate", layer.isMissing ? "text-red-300" : "text-zinc-300")}>
                     {layer.name}
                   </span>
-                  <div style={{ display: 'flex', gap: '2px' }}>
-                    <button
-                      onClick={() => onReorderLayer(layer.instanceId, 'up')}
-                      disabled={index === 0}
-                      style={miniButtonStyle(index === 0)}
-                    >▲</button>
-                    <button
-                      onClick={() => onReorderLayer(layer.instanceId, 'down')}
-                      disabled={index === sortedLayers.length - 1}
-                      style={miniButtonStyle(index === sortedLayers.length - 1)}
-                    >▼</button>
-                    <button
-                      onClick={() => onCloseLayer(layer.instanceId)}
-                      style={{ ...miniButtonStyle(false), color: '#f87171' }}
-                    >✕</button>
+
+                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <IconButton 
+                      size="sm" 
+                      disabled={index === 0} 
+                      onClick={(e) => { e.stopPropagation(); onReorderLayer(layer.instanceId, 'up') }}
+                      className="w-5 h-5 text-zinc-500 hover:text-zinc-300"
+                    >▲</IconButton>
+                    <IconButton 
+                      size="sm" 
+                      disabled={index === sortedLayers.length - 1} 
+                      onClick={(e) => { e.stopPropagation(); onReorderLayer(layer.instanceId, 'down') }}
+                      className="w-5 h-5 text-zinc-500 hover:text-zinc-300"
+                    >▼</IconButton>
+                    <IconButton 
+                      size="sm" 
+                      variant="danger"
+                      onClick={(e) => { e.stopPropagation(); onCloseLayer(layer.instanceId) }}
+                      className="w-5 h-5"
+                    >✕</IconButton>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
+              ))}
+            </div>
+          )}
+        </Menu>
 
-      {/* Layouts Panel */}
-      {activePanel === 'layouts' && (
-        <div style={panelStyle}>
-          <div style={panelHeaderStyle}>
-            Saved Layouts
-            <button onClick={() => setActivePanel(null)} style={closeButtonStyle}>✕</button>
-          </div>
-          
-          {/* Save Input */}
-          <div style={{ padding: '12px', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-            {showSaveInput ? (
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <input
-                  type="text"
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-                  placeholder="Name..."
-                  autoFocus
-                  style={inputStyle}
+        {/* Settings Menu */}
+        <Menu 
+          isOpen={activeMenu === 'settings'} 
+          onClose={() => setActiveMenu(null)} 
+          triggerRef={settingsRef}
+          placement="bottom-start"
+          className="w-64"
+        >
+          {settingsView === 'main' ? (
+            <>
+              <MenuHeader>Settings</MenuHeader>
+              <MenuItem 
+                label="Layouts" 
+                icon="💾" 
+                hasSubmenu 
+                onClick={() => setSettingsView('layouts')} 
+              />
+               <MenuItem 
+                label="Theme" 
+                icon="🎨" 
+                hasSubmenu 
+                onClick={() => setSettingsView('theme')} 
+              />
+              <MenuSeparator />
+              <MenuItem label="Preferences" icon="⚙️" disabled />
+              <MenuItem label="About" icon="ℹ️" disabled />
+            </>
+          ) : settingsView === 'layouts' ? (
+            <>
+              <MenuItem 
+                label="Back" 
+                icon="←" 
+                onClick={() => setSettingsView('main')} 
+                className="sticky top-0 bg-zinc-900 border-b border-white/10 z-10"
+              />
+              <MenuHeader>Saved Layouts</MenuHeader>
+              
+              {/* Import/Save Controls */}
+              <div className="p-2 border-b border-white/10 space-y-2">
+                {/* Hidden File Input */}
+                <input 
+                  type="file" 
+                  accept=".json" 
+                  ref={fileInputRef} 
+                  onChange={handleImport} 
+                  className="hidden" 
                 />
-                <button onClick={handleSave} style={saveButtonStyle}>Save</button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setShowSaveInput(true)}
-                style={saveCurrentStyle}
-              >
-                + Save Current
-              </button>
-            )}
-          </div>
 
-          {/* Layout List */}
-          <div style={{ padding: '8px', maxHeight: '250px', overflowY: 'auto' }}>
-            {savedLayouts.length === 0 ? (
-              <div style={emptyStyle}>No saved layouts</div>
-            ) : (
-              savedLayouts.map((layout) => (
-                <div
-                  key={layout.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    padding: '8px 10px',
-                    borderRadius: '6px',
-                    marginBottom: '4px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.05)',
-                  }}
-                >
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '12px', color: 'white', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {layout.name}
-                    </div>
-                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginTop: '2px' }}>
-                      {layout.sources.length} sources • {formatDate(layout.createdAt)}
-                    </div>
+                {showSaveInput ? (
+                  <div className="flex gap-1 animate-in fade-in zoom-in-95 duration-200">
+                    <input
+                      type="text"
+                      value={saveName}
+                      onChange={(e) => setSaveName(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleSaveNew()}
+                      placeholder="Name..."
+                      autoFocus
+                      className="flex-1 bg-white/5 border border-white/20 rounded px-2 py-1 text-xs text-white outline-none focus:border-blue-500/50"
+                    />
+                    <IconButton variant="solid" size="sm" onClick={handleSaveNew} className="bg-blue-600 hover:bg-blue-500">✓</IconButton>
+                    <IconButton size="sm" onClick={() => setShowSaveInput(false)}>✕</IconButton>
                   </div>
-                  <div style={{ display: 'flex', gap: '4px', marginLeft: '8px' }}>
-                    <button
-                      onClick={() => { onLoadLayout(layout.id); setActivePanel(null); }}
-                      style={loadButtonStyle}
+                ) : (
+                  <div className="flex gap-2">
+                     <button 
+                      onClick={() => setShowSaveInput(true)}
+                       className="flex-1 py-1.5 px-2 rounded border border-dashed border-white/20 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors flex items-center justify-center gap-1"
                     >
-                      Load
+                      <span>+</span> Save Current
                     </button>
-                    <button
-                      onClick={() => handleDelete(layout.id)}
-                      style={{
-                        ...deleteButtonStyle,
-                        backgroundColor: confirmDelete === layout.id ? '#ef4444' : 'rgba(239, 68, 68, 0.2)',
-                        color: confirmDelete === layout.id ? 'white' : '#fca5a5',
-                      }}
+                    <button 
+                      onClick={() => fileInputRef.current?.click()}
+                      className="py-1.5 px-3 rounded border border-white/10 text-xs text-zinc-400 hover:bg-white/5 hover:text-zinc-200 transition-colors flex items-center justify-center gap-1"
+                      title="Import JSON"
                     >
-                      {confirmDelete === layout.id ? '?' : '🗑'}
+                      <span>📥</span>
                     </button>
                   </div>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+                )}
+              </div>
+
+              {/* List */}
+              <div className="max-h-[250px] overflow-y-auto p-1">
+                {savedLayouts.length === 0 ? (
+                   <div className="py-6 text-center text-zinc-500 text-xs">No saved layouts</div>
+                ) : (
+                  savedLayouts.map(layout => (
+                    <div key={layout.id} className="group flex items-center gap-2 px-2 py-2 rounded hover:bg-white/5 transition-colors">
+                      <div className="flex-1 min-w-0 cursor-pointer" onClick={() => { onLoadLayout(layout.id); setActiveMenu(null) }}>
+                        <div className="text-13px text-zinc-200 font-medium truncate">{layout.name}</div>
+                        <div className="text-[10px] text-zinc-500 mt-1 flex flex-col gap-0.5">
+                          <span>{layout.sources.length} sources</span>
+                          <span>{layout.windowSize.width}x{layout.windowSize.height}</span>
+                          <span className="opacity-75">{formatDate(layout.createdAt)}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        {/* Overwrite Button */}
+                        <Tooltip content="Overwrite" side="top">
+                           <IconButton 
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => { e.stopPropagation(); promptOverwrite(layout) }}
+                            className="text-zinc-500 hover:text-blue-400 h-6 w-6"
+                          >
+                            💾
+                          </IconButton>
+                        </Tooltip>
+
+                         {/* Export Button */}
+                         <Tooltip content="Export JSON" side="top">
+                           <IconButton 
+                            size="sm"
+                            variant="ghost"
+                            onClick={(e) => { e.stopPropagation(); exportLayoutAsJson(layout) }}
+                            className="text-zinc-500 hover:text-green-400 h-6 w-6"
+                          >
+                            📤
+                          </IconButton>
+                        </Tooltip>
+
+                        {/* Load Button (Styled better) */}
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={(e) => { e.stopPropagation(); onLoadLayout(layout.id); setActiveMenu(null); }}
+                          className="h-6 px-2 text-[10px] bg-white/10 hover:bg-blue-600 hover:text-white border border-white/5 mx-1"
+                        >
+                          Load
+                        </Button>
+
+                         {/* Delete Button */}
+                        <IconButton 
+                          size="sm" 
+                          variant="danger"
+                          onClick={(e) => { e.stopPropagation(); promptDelete(layout) }}
+                          className="h-6 w-6 text-zinc-500 hover:bg-red-500/10 hover:text-red-400"
+                        >
+                          ✕
+                        </IconButton>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </>
+          ) : settingsView === 'theme' ? (
+            <>
+               <MenuItem 
+                label="Back" 
+                icon="←" 
+                onClick={() => setSettingsView('main')} 
+                className="sticky top-0 bg-zinc-900 border-b border-white/10 z-10"
+              />
+              <MenuHeader>Theme</MenuHeader>
+              <MenuItem label="Dark" icon="🌙" active />
+              <MenuItem label="Light" icon="☀️" disabled />
+              <MenuItem label="System" icon="💻" disabled />
+            </>
+          ) : null}
+        </Menu>
+      </div>
+
+      {/* Confirmation Dialogs */}
+      <ConfirmDialog
+        isOpen={confirmDialog.isOpen}
+        title={confirmDialog.type === 'delete' ? 'Delete Layout?' : 'Overwrite Layout?'}
+        description={
+          confirmDialog.type === 'delete' ? (
+             <div className="space-y-2">
+               <p>Are you sure you want to delete this layout? This action cannot be undone.</p>
+               <div className="bg-black/20 p-2 rounded border border-white/5 text-xs">
+                 <div className="font-medium text-white">{confirmDialog.layoutName}</div>
+                 <div className="text-zinc-500 mt-1">
+                   {/* We assume we can find the layout details? 
+                       Actually confirmDialog state only has id/name. 
+                       We should probably pass more info or find it here?
+                       Ideally we update state to hold the full layout object or just pass display strings.
+                       To keep it simple, I'll update the state usage above to find the layout if needed, 
+                       or update the state type.
+                       Wait, simple fix: Update the prompt calls to update more state?
+                       Or just use what I have.
+                       The user asked for details in confirmation.
+                       Let's find the layout from savedLayouts list using layoutId.
+                   */}
+                   {(() => {
+                     const layout = savedLayouts.find(l => l.id === confirmDialog.layoutId)
+                     if (!layout) return null
+                     return `${layout.sources.length} sources • ${layout.windowSize.width}x${layout.windowSize.height}`
+                   })()}
+                 </div>
+               </div>
+             </div>
+          ) : (
+            <div className="space-y-2">
+               <p>Are you sure you want to overwrite this layout with the current window configuration?</p>
+               <div className="bg-black/20 p-2 rounded border border-white/5 text-xs">
+                 <div className="font-medium text-white">{confirmDialog.layoutName}</div>
+                 <div className="text-zinc-500 mt-1">
+                   {/* Show current details vs old details? Or just identify the target. */}
+                   Target: {(() => {
+                     const layout = savedLayouts.find(l => l.id === confirmDialog.layoutId)
+                     if (!layout) return null
+                     return `${layout.sources.length} sources • ${layout.windowSize.width}x${layout.windowSize.height}`
+                   })()}
+                 </div>
+               </div>
+             </div>
+          )
+        }
+        confirmLabel={confirmDialog.type === 'delete' ? 'Delete' : 'Overwrite'}
+        variant={confirmDialog.type === 'delete' ? 'danger' : 'primary'}
+        onConfirm={handleConfirmAction}
+        onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
+      />
+    </>
   )
 }
 
-// Style helpers
-const buttonStyle = (active: boolean): React.CSSProperties => ({
-  width: '32px',
-  height: '32px',
-  borderRadius: '8px',
-  border: 'none',
-  backgroundColor: active ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.08)',
-  color: active ? '#93c5fd' : 'white',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  transition: 'background-color 0.15s',
-})
-
-const panelStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '52px',
-  left: 0,
-  width: '240px',
-  backgroundColor: 'rgba(0, 0, 0, 0.95)',
-  backdropFilter: 'blur(12px)',
-  borderRadius: '12px',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
-  overflow: 'hidden',
-}
-
-const panelHeaderStyle: React.CSSProperties = {
-  padding: '10px 12px',
-  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-  fontSize: '11px',
-  fontWeight: 600,
-  color: 'rgba(255, 255, 255, 0.6)',
-  textTransform: 'uppercase',
-  letterSpacing: '0.5px',
-  display: 'flex',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-}
-
-const closeButtonStyle: React.CSSProperties = {
-  background: 'none',
-  border: 'none',
-  color: 'rgba(255, 255, 255, 0.4)',
-  cursor: 'pointer',
-  fontSize: '12px',
-  padding: 0,
-}
-
-const emptyStyle: React.CSSProperties = {
-  padding: '20px',
-  textAlign: 'center',
-  color: 'rgba(255, 255, 255, 0.4)',
-  fontSize: '12px',
-}
-
-const layerNumberStyle: React.CSSProperties = {
-  width: '18px',
-  height: '18px',
-  borderRadius: '4px',
-  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '9px',
-  color: 'rgba(255, 255, 255, 0.6)',
-  flexShrink: 0,
-}
-
-const miniButtonStyle = (disabled: boolean): React.CSSProperties => ({
-  width: '18px',
-  height: '18px',
-  border: 'none',
-  backgroundColor: 'transparent',
-  color: disabled ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)',
-  cursor: disabled ? 'default' : 'pointer',
-  fontSize: '8px',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  padding: 0,
-})
-
-const inputStyle: React.CSSProperties = {
-  flex: 1,
-  padding: '6px 10px',
-  borderRadius: '6px',
-  border: '1px solid rgba(255, 255, 255, 0.2)',
-  backgroundColor: 'rgba(255, 255, 255, 0.05)',
-  color: 'white',
-  fontSize: '12px',
-  outline: 'none',
-}
-
-const saveButtonStyle: React.CSSProperties = {
-  padding: '6px 12px',
-  borderRadius: '6px',
-  border: 'none',
-  backgroundColor: '#3b82f6',
-  color: 'white',
-  fontSize: '11px',
-  cursor: 'pointer',
-  fontWeight: 500,
-}
-
-const saveCurrentStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '8px',
-  borderRadius: '6px',
-  border: '1px dashed rgba(255, 255, 255, 0.3)',
-  backgroundColor: 'transparent',
-  color: 'rgba(255, 255, 255, 0.7)',
-  fontSize: '12px',
-  cursor: 'pointer',
-}
-
-const loadButtonStyle: React.CSSProperties = {
-  padding: '4px 10px',
-  borderRadius: '4px',
-  border: 'none',
-  backgroundColor: '#3b82f6',
-  color: 'white',
-  fontSize: '10px',
-  cursor: 'pointer',
-  fontWeight: 500,
-}
-
-const deleteButtonStyle: React.CSSProperties = {
-  padding: '4px 6px',
-  borderRadius: '4px',
-  border: 'none',
-  fontSize: '10px',
-  cursor: 'pointer',
-}

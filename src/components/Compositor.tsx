@@ -157,9 +157,9 @@ export function Compositor() {
             instanceId: s.instanceId, 
             x: s.x, 
             y: s.y, 
-            width: 400, // Reset to default to trigger auto-resize (Actual Size)
-            height: 300, 
-            scale: 1, // Reset Zoom
+            width: s.width, // Keep existing size
+            height: s.height, 
+            scale: 1, // Reset Zoom to 100% (safe default)
             pan: { x: 0, y: 0 }, // Reset Pan
             viewMode: 'manual', 
             layerOrder: s.layerOrder, 
@@ -438,6 +438,7 @@ export function Compositor() {
         onLoadLayout={handleLoadLayout}
         onDeleteLayout={handleDeleteLayout}
         onAddSource={handleOpenPicker}
+        onLayoutsChanged={() => setSavedLayouts(loadLayouts())}
       />
 
       {/* Composition Area */}
@@ -464,6 +465,12 @@ export function Compositor() {
             bounds="parent"
             dragHandleClassName={isModifierPressed ? "" : "drag-handle"}
             enableUserSelectHack={false} 
+            resizeHandleComponent={{
+              topRight: <div onDoubleClick={() => handleLayout(source.instanceId!, 'real-size')} className="w-full h-full" />,
+              topLeft: <div onDoubleClick={() => handleLayout(source.instanceId!, 'real-size')} className="w-full h-full" />,
+              bottomRight: <div onDoubleClick={() => handleLayout(source.instanceId!, 'real-size')} className="w-full h-full" />,
+              bottomLeft: <div onDoubleClick={() => handleLayout(source.instanceId!, 'real-size')} className="w-full h-full" />,
+            }}
             style={{ 
               zIndex: 10 + idx,
               opacity: hoveredInstanceId 
