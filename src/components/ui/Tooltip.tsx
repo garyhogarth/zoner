@@ -25,7 +25,7 @@ export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
     >
       {children}
       {isVisible && (
-        <div className={`absolute z-50 px-2 py-1 text-xs text-white bg-zinc-900 border border-zinc-700 rounded shadow-lg whitespace-nowrap pointer-events-none ${positions[side]}`}>
+        <div className={`absolute z-50 px-2 py-1 text-xs text-[hsl(var(--popover-foreground))] bg-[hsl(var(--popover))] border border-[hsl(var(--border))] rounded shadow-lg whitespace-nowrap pointer-events-none ${positions[side]}`}>
           {content}
         </div>
       )}

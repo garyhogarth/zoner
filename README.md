@@ -76,3 +76,8 @@ Since we are not notarizing the app (requires a paid Apple Developer account), m
 1.  **Right-click** (or Ctrl+Click) the `Zoner.app`.
 2.  Select **Open** from the menu.
 3.  Click **Open** in the dialog box that appears.
+
+## Author
+
+Created by [Gary Hogarth](https://github.com/garyhogarth/)
+

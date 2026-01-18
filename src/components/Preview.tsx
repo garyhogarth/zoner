@@ -353,6 +353,24 @@ export function Preview() {
           </Link>
           
           <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+
+          <Link 
+            to="/compositor" 
+            style={{
+              color: 'rgba(255,255,255,0.7)',
+              fontWeight: 500,
+              fontSize: '12px',
+              textDecoration: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '4px',
+            }}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            Compositor →
+          </Link>
+          
+          <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
           
           <button 
             onClick={handleZoomOut}

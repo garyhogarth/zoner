@@ -66,21 +66,29 @@
 /* Theme Overrides */
 [data-theme='zinc'] {
   --background: 0 0% 9%;
-  /* #171717 */
   --muted: 240 3.7% 15.9%;
   --primary: 240 5.9% 10%;
   --ring: 240 4.9% 83.9%;
   --primary-highlight: 240 5% 64.9%;
+
+  --button-primary: 240 5.9% 10%;
+  --button-hover: 240 5% 64.9%;
+  --active-bg: 240 3.7% 15.9%;
+  --active-text: 0 0% 98%;
 }
 
 [data-theme='blue'] {
   --background: 222 47% 11%;
-  /* #0f172a */
   --muted: 217 33% 17%;
   --primary: 221.2 83.2% 53.3%;
   --primary-foreground: 210 40% 98%;
   --ring: 221.2 83.2% 53.3%;
   --primary-highlight: 217.2 91.2% 59.8%;
+
+  --button-primary: 221.2 83.2% 53.3%;
+  --button-hover: 217.2 91.2% 59.8%;
+  --active-bg: 221.2 83.2% 53.3% / 0.2;
+  --active-text: 210 40% 98%;
 }
 
 [data-theme='rose'] {
@@ -90,6 +98,11 @@
   --primary-foreground: 355.7 100% 97.3%;
   --ring: 346.8 77.2% 49.8%;
   --primary-highlight: 349.7 89.2% 60.2%;
+
+  --button-primary: 346.8 77.2% 49.8%;
+  --button-hover: 349.7 89.2% 60.2%;
+  --active-bg: 346.8 77.2% 49.8% / 0.2;
+  --active-text: 355.7 100% 97.3%;
 }
 
 [data-theme='green'] {
@@ -99,6 +112,11 @@
   --primary-foreground: 355.7 100% 97.3%;
   --ring: 142.1 76.2% 36.3%;
   --primary-highlight: 142.1 70.6% 45.3%;
+
+  --button-primary: 142.1 76.2% 36.3%;
+  --button-hover: 142.1 70.6% 45.3%;
+  --active-bg: 142.1 76.2% 36.3% / 0.2;
+  --active-text: 142.1 70.6% 45.3%;
 }
 
 [data-theme='orange'] {
@@ -108,6 +126,28 @@
   --primary-foreground: 60 9.1% 97.8%;
   --ring: 24.6 95% 53.1%;
   --primary-highlight: 20.5 90.2% 48.2%;
+
+  --button-primary: 24.6 95% 53.1%;
+  --button-hover: 20.5 90.2% 48.2%;
+  --active-bg: 24.6 95% 53.1% / 0.2;
+  --active-text: 60 9.1% 97.8%;
+}
+
+[data-theme='light'] {
+  --background: 0 0% 100%;
+  --foreground: 240 10% 3.9%;
+  --muted: 240 4.8% 95.9%;
+  --primary: 240 5.9% 10%;
+  --primary-foreground: 0 0% 98%;
+  --ring: 240 5.9% 10%;
+  --primary-highlight: 240 5% 30%;
+  --border: 240 5.9% 90%;
+  --input: 240 5.9% 90%;
+
+  --button-primary: 240 5.9% 10%;
+  --button-hover: 240 5% 30%;
+  --active-bg: 240 5.9% 10% / 0.05;
+  --active-text: 240 5.9% 10%;
 }
 
 @layer base {

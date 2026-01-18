@@ -93,7 +93,7 @@ export function Menu({ isOpen, onClose, children, className = '', triggerRef, pl
       <div 
         ref={menuRef}
         style={style}
-        className={`fixed z-[9999] bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl overflow-hidden min-w-[180px] py-1 ${className}`}
+        className={`fixed z-[9999] bg-[hsl(var(--popover))] border border-[hsl(var(--border))] rounded-lg shadow-xl overflow-hidden min-w-[180px] py-1 ${className}`}
         onWheel={(e) => e.stopPropagation()}
       >
         {children}
@@ -121,7 +121,7 @@ export function MenuItem({ icon, label, onClick, active, disabled, shortcut, has
       disabled={disabled}
       className={`
         w-full flex items-center gap-3 px-3 py-2 text-sm text-left transition-colors
-        ${active ? 'bg-blue-600/20 text-blue-200' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}
+        ${active ? 'bg-[hsl(var(--active-bg))] text-[hsl(var(--active-text))]' : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'}
         ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         ${className}
       `}

@@ -14,7 +14,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     const baseStyles = 'inline-flex items-center justify-center rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50'
     
     const variants = {
-      primary: 'bg-blue-600 text-white hover:bg-blue-700',
+      primary: 'bg-[hsl(var(--button-primary))] text-white hover:bg-[hsl(var(--button-hover))]',
       secondary: 'bg-zinc-700 text-white hover:bg-zinc-600',
       ghost: 'hover:bg-zinc-800 text-zinc-300 hover:text-white',
       danger: 'bg-red-600 text-white hover:bg-red-700',
@@ -48,7 +48,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     
     const variants = {
       ghost: 'hover:bg-white/10 text-zinc-300 hover:text-white',
-      solid: 'bg-zinc-800 text-white hover:bg-zinc-700',
+      solid: 'bg-[hsl(var(--button-primary))] text-white hover:bg-[hsl(var(--button-hover))]',
       danger: 'hover:bg-red-500/20 text-red-400 hover:text-red-100',
     }
 

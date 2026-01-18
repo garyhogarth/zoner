@@ -508,8 +508,11 @@ export function Compositor() {
               {source.isMissing ? (
                 <MissingSourcePlaceholder 
                   source={source}
+                  availableSources={pickerSources}
                   onReplace={() => handleReplaceMissingSource(source.instanceId!)}
                   onDismiss={() => handleDismissSource(source.instanceId!)}
+                  onSwitch={(newId) => handleSwitchSource(source.instanceId!, newId)}
+                  onLayout={(type) => handleLayout(source.instanceId!, type)}
                   isWindowFocused={isFocused}
                 />
               ) : (
@@ -589,13 +592,19 @@ export function Compositor() {
 
 function MissingSourcePlaceholder({ 
   source, 
+  availableSources,
   onReplace, 
   onDismiss,
+  onSwitch,
+  onLayout,
   isWindowFocused 
 }: { 
   source: ComposableSource
+  availableSources: Source[]
   onReplace: () => void
   onDismiss: () => void
+  onSwitch: (id: string) => void
+  onLayout: (type: LayoutType) => void
   isWindowFocused: boolean
 }) {
   const [isHovered, setIsHovered] = useState(false)
@@ -622,34 +631,19 @@ function MissingSourcePlaceholder({
         Select New Source
       </button>
 
-      {/* Toolbar for drag handle + close */}
-      <div 
-        className={clsx(
-          "drag-handle absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2",
-          "bg-black/85 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 cursor-move",
-          "transition-opacity duration-200"
-        )}
-        style={{ opacity: isWindowFocused || isHovered ? 1 : 0 }}
-      >
-        {/* Grip */}
-        <div className="text-white/40 flex items-center">
-          <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor">
-            <circle cx="1.5" cy="1.5" r="1.5" />
-            <circle cx="1.5" cy="5" r="1.5" />
-            <circle cx="1.5" cy="8.5" r="1.5" />
-            <circle cx="4.5" cy="1.5" r="1.5" />
-            <circle cx="4.5" cy="5" r="1.5" />
-            <circle cx="4.5" cy="8.5" r="1.5" />
-          </svg>
-        </div>
-        <span className="text-[11px] text-red-300">Missing</span>
-        <button
-          onClick={onDismiss}
-          className="bg-red-500/20 text-red-300 w-5 h-5 rounded-full flex items-center justify-center text-xs hover:bg-red-500/30 transition-colors"
-        >
-          ✕
-        </button>
-      </div>
+      {/* Use SourceControls for consistent toolbar */}
+      <SourceControls
+        sourceName={source.name + ' (Missing)'}
+        scale={1}
+        onScaleChange={() => {}}
+        onDismiss={onDismiss}
+        onSwitch={onSwitch}
+        availableSources={availableSources}
+        onLayout={onLayout}
+        viewMode="manual"
+        onViewModeChange={() => {}}
+        visible={isWindowFocused || isHovered}
+      />
     </div>
   )
 }

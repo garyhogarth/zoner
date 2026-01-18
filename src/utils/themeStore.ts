@@ -5,6 +5,7 @@ export const THEMES = [
     { id: 'rose', name: 'Rose' },
     { id: 'green', name: 'Green' },
     { id: 'orange', name: 'Orange' },
+    { id: 'light', name: 'Light' },
 ] as const
 
 export type ThemeId = typeof THEMES[number]['id']
@@ -23,8 +24,12 @@ export function setTheme(theme: ThemeId) {
     const root = document.documentElement
     root.setAttribute('data-theme', theme)
 
-    // Also force dark mode for now as base
-    root.classList.add('dark')
+    // Handle dark/light mode class
+    if (theme === 'light') {
+        root.classList.remove('dark')
+    } else {
+        root.classList.add('dark')
+    }
 }
 
 // Initialize on load

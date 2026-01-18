@@ -3,7 +3,7 @@ import type { SavedLayout } from '../utils/layoutStore'
 import { IconButton, Button } from './ui/Button'
 import { Menu, MenuItem, MenuHeader, MenuSeparator } from './ui/Menu'
 import { Tooltip } from './ui/Tooltip'
-import { ConfirmDialog } from './ui/Dialog'
+import { ConfirmDialog, AboutDialog } from './ui/Dialog'
 import { exportLayoutAsJson, importLayoutFromJson } from '../utils/layoutIO'
 import { clsx } from 'clsx'
 
@@ -70,6 +70,9 @@ export function CompositorToolbar({
     layoutId: string
     layoutName: string
   }>({ isOpen: false, type: 'delete', layoutId: '', layoutName: '' })
+  
+  // About Dialog State
+  const [showAbout, setShowAbout] = useState(false)
 
   const isVisible = visible || isHovered || activeMenu !== null
 
@@ -150,7 +153,7 @@ export function CompositorToolbar({
         onMouseLeave={() => setIsHovered(false)}
       >
         {/* Main Toolbar */}
-        <div className="flex gap-1 p-1.5 bg-black/80 backdrop-blur-md border border-white/10 rounded-xl shadow-2xl">
+        <div className="flex gap-1 p-1.5 bg-[hsl(var(--background))]/80 backdrop-blur-md border border-[hsl(var(--border))] rounded-xl shadow-2xl">
           {/* Settings (Hamburger) */}
           <Tooltip content="Menu" side="right">
             <IconButton 
@@ -160,7 +163,7 @@ export function CompositorToolbar({
                 setSettingsView('main')
               }}
               variant={activeMenu === 'settings' ? 'solid' : 'ghost'}
-              className={activeMenu === 'settings' ? 'bg-blue-500/20 text-blue-400' : 'text-white/70 hover:text-white'}
+              className={activeMenu === 'settings' ? 'bg-blue-500/20 text-blue-400' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}
             >
               {/* Hamburger Icon */}
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -169,11 +172,11 @@ export function CompositorToolbar({
             </IconButton>
           </Tooltip>
 
-          <div className="w-px bg-white/10 my-1" />
+          <div className="w-px bg-[hsl(var(--border))] my-1" />
 
           {/* Add Source */}
           <Tooltip content="Add Source" side="right">
-            <IconButton onClick={onAddSource} variant="ghost" className="text-white hover:bg-white/10">
+            <IconButton onClick={onAddSource} variant="ghost" className="text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/50">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 5v14M5 12h14" />
               </svg>
@@ -189,7 +192,7 @@ export function CompositorToolbar({
                 setSettingsView('main')
               }}
               variant={activeMenu === 'layers' ? 'solid' : 'ghost'}
-              className={activeMenu === 'layers' ? 'bg-blue-500/20 text-blue-400' : 'text-white/70 hover:text-white'}
+              className={activeMenu === 'layers' ? 'bg-blue-500/20 text-blue-400' : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'}
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
@@ -286,7 +289,7 @@ export function CompositorToolbar({
               />
               <MenuSeparator />
               <MenuItem label="Preferences" icon="⚙️" disabled />
-              <MenuItem label="About" icon="ℹ️" disabled />
+              <MenuItem label="About" icon="ℹ️" onClick={() => { setShowAbout(true); setActiveMenu(null) }} />
             </>
           ) : settingsView === 'layouts' ? (
             <>
@@ -483,6 +486,9 @@ export function CompositorToolbar({
         onConfirm={handleConfirmAction}
         onCancel={() => setConfirmDialog({ ...confirmDialog, isOpen: false })}
       />
+
+      {/* About Dialog */}
+      <AboutDialog isOpen={showAbout} onClose={() => setShowAbout(false)} />
     </>
   )
 }

@@ -327,7 +327,7 @@ function LayoutIcon({ type }: { type: LayoutType }) {
 }
 
 // Menu Definitions
-type MenuLevel = 'main' | 'halves' | 'corners' | 'thirds' | 'fourths' | 'sixths'
+type MenuLevel = 'main' | 'halves' | 'corners' | 'thirds' | 'fourths'
 
 const MENU_ITEMS: Record<MenuLevel, { id: string, label: string, type?: LayoutType, submenu?: MenuLevel }[]> = {
   main: [
@@ -338,7 +338,6 @@ const MENU_ITEMS: Record<MenuLevel, { id: string, label: string, type?: LayoutTy
     { id: 'corners', label: 'Corners', submenu: 'corners' },
     { id: 'thirds', label: 'Thirds', submenu: 'thirds' },
     { id: 'fourths', label: 'Fourths', submenu: 'fourths' },
-    { id: 'sixths', label: 'Sixths', submenu: 'sixths' },
   ],
   halves: [
     { id: 'left', label: 'Left Half', type: 'left' },
@@ -365,12 +364,4 @@ const MENU_ITEMS: Record<MenuLevel, { id: string, label: string, type?: LayoutTy
     { id: 'f3', label: 'Third Fourth', type: 'third-fourth' },
     { id: 'f4', label: 'Last Fourth', type: 'last-fourth' },
   ],
-  sixths: [
-    { id: 's1', label: 'First Sixth', type: 'first-sixth' },
-    { id: 's2', label: 'Second Sixth', type: 'second-sixth' },
-    { id: 's3', label: 'Third Sixth', type: 'third-sixth' },
-    { id: 's4', label: 'Fourth Sixth', type: 'fourth-sixth' },
-    { id: 's5', label: 'Fifth Sixth', type: 'fifth-sixth' },
-    { id: 's6', label: 'Last Sixth', type: 'last-sixth' },
-  ]
 }
