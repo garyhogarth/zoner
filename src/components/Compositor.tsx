@@ -1,5 +1,7 @@
+
 import { useState, useRef, useEffect } from 'react'
 import { Rnd } from 'react-rnd'
+import { clsx } from 'clsx'
 
 import { SourcePicker } from './SourcePicker'
 import { fetchUnifiedSources, type Source } from '../utils/sources'
@@ -132,7 +134,7 @@ export function Compositor() {
       y: baseOffset + offset,
       width: 400,
       height: 300,
-      scale: 1 / (window.devicePixelRatio || 1),  // DPR-based default for proper display
+      scale: 1,
       pan: { x: 0, y: 0 },
       viewMode: 'manual',
       layerOrder: maxLayer + 1,
@@ -150,7 +152,19 @@ export function Compositor() {
     if (!newSource) return
     setActiveSources(activeSources.map(s => 
       s.instanceId === instanceId 
-        ? { ...newSource, instanceId: s.instanceId, x: s.x, y: s.y, width: s.width, height: s.height, scale: s.scale, pan: s.pan, viewMode: s.viewMode, layerOrder: s.layerOrder, isMissing: false }
+        ? { 
+            ...newSource, 
+            instanceId: s.instanceId, 
+            x: s.x, 
+            y: s.y, 
+            width: 400, // Reset to default to trigger auto-resize (Actual Size)
+            height: 300, 
+            scale: 1, // Reset Zoom
+            pan: { x: 0, y: 0 }, // Reset Pan
+            viewMode: 'manual', 
+            layerOrder: s.layerOrder, 
+            isMissing: false 
+          }
         : s
     ))
   }
@@ -177,21 +191,33 @@ export function Compositor() {
       
       const setRect = (hSeg: number, hIdx: number, hSpan: number, vSeg: number = 1, vIdx: number = 0, vSpan: number = 1) => {
         const h = getGridRect(hSeg, hIdx, hSpan)
-        // Vertical logic is simpler for now (usually just full height or halves)
-        // reuse same logic for vertical to support top/bottom halves
         const vGap = P
         const vAvail = H - 2 * P - (vSeg - 1) * vGap
         const vUnit = vAvail / vSeg
         const y = P + vIdx * (vUnit + vGap)
         const height = vUnit * vSpan + (vSpan - 1) * vGap
         
-        updates = { x: h.x, y, width: h.width, height }
+        updates = { 
+          x: h.x, 
+          y, 
+          width: h.width, 
+          height,
+          scale: 1,
+          pan: { x: 0, y: 0 }
+        }
       }
 
       switch (type) {
         case 'full': setRect(1, 0, 1); break
         case 'center': 
-          updates = { x: (W - 800) / 2, y: (H - 600) / 2, width: 800, height: 600 }
+          updates = { 
+            x: (W - 800) / 2, 
+            y: (H - 600) / 2, 
+            width: 800, 
+            height: 600,
+            scale: 1,
+            pan: { x: 0, y: 0 }
+          }
           break
         
         // Halves
@@ -228,37 +254,34 @@ export function Compositor() {
         case 'last-sixth': setRect(6, 5, 1); break
 
       case 'real-size': {
-        // Size window to match source's native video dimensions exactly
         const source = activeSources.find(s => s.instanceId === instanceId)
-        console.log('Real-size for source:', source?.name, 'native:', source?.nativeWidth, 'x', source?.nativeHeight)
         
         if (source?.nativeWidth && source?.nativeHeight) {
-          const dpr = window.devicePixelRatio || 1
-          // Use native dimensions directly (they're already in logical/CSS pixels)
+
           const targetW = source.nativeWidth
           const targetH = source.nativeHeight
-          // Clamp to compositor window with padding
           const maxW = W - P * 2
           const maxH = H - P * 2
           const clampedW = Math.min(targetW, maxW)
           const clampedH = Math.min(targetH, maxH)
           
+          const fits = (source.x + clampedW <= W) && (source.y + clampedH <= H) && (source.x >= 0) && (source.y >= 0)
+
+          const targetX = fits ? source.x : (W - clampedW) / 2
+          const targetY = fits ? source.y : (H - clampedH) / 2
+
           updates = { 
             width: clampedW,
             height: clampedH,
-            x: (W - clampedW) / 2,
-            y: (H - clampedH) / 2,
-            scale: 1 / dpr,  // Keep DPR-based scale for proper rendering
-            pan: { x: 0, y: 0 },
-            viewMode: 'manual'
+            x: targetX,
+            y: targetY,
+            viewMode: 'manual',
+            pan: { x: 0, y: 0 } // Reset pan
           }
-          console.log('Applied real-size:', updates)
         } else {
-          console.log('Native dimensions not yet available')
           updates = { 
-            scale: 1 / (window.devicePixelRatio || 1),
-            pan: { x: 0, y: 0 },
-            viewMode: 'manual'
+            viewMode: 'manual',
+            pan: { x: 0, y: 0 }
           }
         }
         break
@@ -273,7 +296,6 @@ export function Compositor() {
     const index = sorted.findIndex(s => s.instanceId === instanceId)
     
     if (direction === 'up' && index > 0) {
-      // Swap layer orders with the one above
       const aboveId = sorted[index - 1].instanceId
       const currentOrder = sorted[index].layerOrder
       const aboveOrder = sorted[index - 1].layerOrder
@@ -284,7 +306,6 @@ export function Compositor() {
         return s
       }))
     } else if (direction === 'down' && index < sorted.length - 1) {
-      // Swap layer orders with the one below
       const belowId = sorted[index + 1].instanceId
       const currentOrder = sorted[index].layerOrder
       const belowOrder = sorted[index + 1].layerOrder
@@ -297,7 +318,6 @@ export function Compositor() {
     }
   }
 
-  // Save current layout
   const handleSaveLayout = (name: string) => {
     const sourcesToSave: SavedSourceState[] = activeSources.map(s => ({
       sourceId: s.id,
@@ -320,18 +340,15 @@ export function Compositor() {
     setSavedLayouts(loadLayouts())
   }
 
-  // Load a saved layout
   const handleLoadLayout = (layoutId: string) => {
     const layout = getLayout(layoutId)
     if (!layout) return
 
-    // Resize window via IPC if available
     try {
       // @ts-ignore
       window.ipcRenderer?.send('resize-window', layout.windowSize)
     } catch (e) {}
 
-    // Restore sources, marking missing ones
     const restored: ComposableSource[] = layout.sources.map((saved, idx) => {
       const found = pickerSources.find(s => s.id === saved.sourceId)
       const instanceId = Date.now().toString() + idx + Math.random().toString().slice(2, 5)
@@ -351,7 +368,6 @@ export function Compositor() {
           isMissing: false,
         }
       } else {
-        // Missing source - create placeholder
         return {
           id: saved.sourceId,
           name: saved.sourceName,
@@ -373,13 +389,11 @@ export function Compositor() {
     setActiveSources(restored)
   }
 
-  // Delete a layout
   const handleDeleteLayout = (layoutId: string) => {
     deleteLayout(layoutId)
     setSavedLayouts(loadLayouts())
   }
 
-  // Open picker to replace a missing source
   const handleReplaceMissingSource = async (instanceId: string) => {
     try {
       const sources = await fetchUnifiedSources()
@@ -389,16 +403,12 @@ export function Compositor() {
     } catch (e) {}
   }
 
-  // Bring source to front (max layer)
   const handleBringToFront = (instanceId: string) => {
-    // 1. Sort by current order
     const sorted = [...activeSources].sort((a, b) => a.layerOrder - b.layerOrder)
-    // 2. Remove target
     const others = sorted.filter(s => s.instanceId !== instanceId)
     const target = sorted.find(s => s.instanceId === instanceId)
     if (!target) return
 
-    // 3. Rebuild list with target at end, re-indexing layers
     const reordered = [...others, target].map((s, idx) => ({
       ...s,
       layerOrder: idx + 1
@@ -407,20 +417,11 @@ export function Compositor() {
     setActiveSources(reordered)
   }
 
-  // Sort sources by layer order for rendering (lower = back, higher = front)
   const sortedSources = [...activeSources].sort((a, b) => a.layerOrder - b.layerOrder)
 
   return (
-    <div style={{
-      width: '100vw',
-      height: '100vh',
-      backgroundColor: '#111',
-      color: 'white',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-    }}>
-      {/* Unified Toolbar (top-left, shows on focus) */}
+    <div className="w-screen h-screen bg-[#111] text-white flex flex-col overflow-hidden">
+      {/* Unified Toolbar */}
       <CompositorToolbar
         visible={isFocused}
         layers={activeSources.map(s => ({
@@ -440,20 +441,9 @@ export function Compositor() {
       />
 
       {/* Composition Area */}
-      <div style={{
-        flex: 1,
-        position: 'relative',
-        overflow: 'hidden',
-        background: 'radial-gradient(circle at center, #222 0%, #111 100%)',
-      }}>
+      <div className="flex-1 relative overflow-hidden bg-[radial-gradient(circle_at_center,_#222_0%,_#111_100%)]">
         {activeSources.length === 0 && !showPicker && (
-          <div style={{ 
-            position: 'absolute', 
-            top: '50%', 
-            left: '50%', 
-            transform: 'translate(-50%, -50%)',
-            color: '#555',
-          }}>
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[#555]">
             Click "+" to add a window
           </div>
         )}
@@ -483,16 +473,10 @@ export function Compositor() {
             }}
           >
             <div 
-              style={{
-                width: '100%',
-                height: '100%',
-                display: 'flex',
-                flexDirection: 'column',
-                background: '#000',
-                overflow: 'hidden',
-                border: '1px solid #333',
-                cursor: isModifierPressed ? 'move' : 'default',
-              }}
+              className={clsx(
+                "w-full h-full flex flex-col bg-black overflow-hidden border border-[#333]",
+                isModifierPressed ? "cursor-move" : "cursor-default"
+              )}
               onMouseEnter={() => setHoveredInstanceId(source.instanceId!)}
               onMouseLeave={() => setHoveredInstanceId(null)}
               onDoubleClick={(e) => {
@@ -517,7 +501,29 @@ export function Compositor() {
                   onViewModeChange={(mode) => handleUpdateSource(source.instanceId!, { viewMode: mode })}
                   onScaleChange={(scale) => handleUpdateSource(source.instanceId!, { scale })}
                   onPanChange={(pan) => handleUpdateSource(source.instanceId!, { pan })}
-                  onNativeDimensions={(w, h) => handleUpdateSource(source.instanceId!, { nativeWidth: w, nativeHeight: h })}
+                  onNativeDimensions={(w, h) => {
+                    // Auto-resize to 1:1 (Logical CSS Pixels) if it's currently at default size
+                    const dpr = window.devicePixelRatio || 1
+                    if (source.width === 400 && source.height === 300) {
+                      const P = 40 // Padding to keep it on screen
+                      const logicalW = w / dpr
+                      const logicalH = h / dpr
+                      
+                      const layoutW = Math.min(logicalW, window.innerWidth - P)
+                      const layoutH = Math.min(logicalH, window.innerHeight - P)
+                      
+                      handleUpdateSource(source.instanceId!, { 
+                        nativeWidth: w, 
+                        nativeHeight: h,
+                        width: layoutW,
+                        height: layoutH,
+                        x: (window.innerWidth - layoutW) / 2, // Center it
+                        y: (window.innerHeight - layoutH) / 2
+                      })
+                    } else {
+                      handleUpdateSource(source.instanceId!, { nativeWidth: w, nativeHeight: h })
+                    }
+                  }}
                   isWindowFocused={isFocused}
                   isHovered={hoveredInstanceId === source.instanceId}
                   isModifierPressed={isModifierPressed}
@@ -530,37 +536,24 @@ export function Compositor() {
 
       {/* Source Picker Modal */}
       {showPicker && (
-        <div style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 100,
-        }} onClick={() => { setShowPicker(false); setReplaceInstanceId(null); }}>
-          <div style={{
-            background: '#1a1a1a',
-            width: '80vw',
-            maxWidth: '1000px',
-            height: '80vh',
-            borderRadius: '12px',
-            border: '1px solid #333',
-            display: 'flex',
-            flexDirection: 'column',
-            overflow: 'hidden',
-          }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '16px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between' }}>
-              <h3 style={{ margin: 0 }}>
+        <div 
+          className="fixed inset-0 bg-black/80 backdrop-blur-sm flex justify-center items-center z-[100]"
+          onClick={() => { setShowPicker(false); setReplaceInstanceId(null); }}
+        >
+          <div 
+            className="bg-[#1a1a1a] w-[80vw] max-w-[1000px] h-[80vh] rounded-xl border border-[#333] flex flex-col overflow-hidden"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="p-4 border-b border-[#333] flex justify-between items-center">
+              <h3 className="m-0 text-white font-medium">
                 {replaceInstanceId ? 'Select Replacement Source' : 'Select a Source'}
               </h3>
               <button 
                 onClick={() => { setShowPicker(false); setReplaceInstanceId(null); }}
-                style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer' }}
+                className="bg-transparent border-none text-[#888] cursor-pointer hover:text-white"
               >✕</button>
             </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '16px', background: '#111' }}>
+            <div className="flex-1 overflow-y-auto p-4 bg-[#111]">
                <SourcePicker 
                   sources={pickerSources} 
                   onSelect={handleAddSource} 
@@ -573,7 +566,6 @@ export function Compositor() {
   )
 }
 
-// Missing source placeholder
 function MissingSourcePlaceholder({ 
   source, 
   onReplace, 
@@ -589,67 +581,37 @@ function MissingSourcePlaceholder({
 
   return (
     <div 
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '12px',
-      }}
+      className="w-full h-full relative bg-white/10 flex flex-col items-center justify-center gap-3"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <span style={{ fontSize: '32px' }}>⚠️</span>
-      <div style={{ textAlign: 'center', padding: '0 20px' }}>
-        <div style={{ fontSize: '14px', fontWeight: 500, color: 'rgba(255,255,255,0.9)' }}>
+      <span className="text-4xl">⚠️</span>
+      <div className="text-center px-5">
+        <div className="text-sm font-medium text-white/90">
           Source Not Found
         </div>
-        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', marginTop: '4px' }}>
+        <div className="text-xs text-white/50 mt-1">
           {source.name}
         </div>
       </div>
       <button
         onClick={onReplace}
-        style={{
-          padding: '8px 16px',
-          borderRadius: '8px',
-          border: 'none',
-          backgroundColor: '#3b82f6',
-          color: 'white',
-          fontSize: '13px',
-          cursor: 'pointer',
-        }}
+        className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm transition-colors"
       >
         Select New Source
       </button>
 
       {/* Toolbar for drag handle + close */}
       <div 
-        className="drag-handle"
-        style={{
-          position: 'absolute',
-          top: '8px',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          background: 'rgba(0, 0, 0, 0.85)',
-          backdropFilter: 'blur(8px)',
-          padding: '6px 12px',
-          borderRadius: '9999px',
-          border: '1px solid rgba(255,255,255,0.1)',
-          opacity: isWindowFocused || isHovered ? 1 : 0,
-          transition: 'opacity 0.2s',
-          cursor: 'move',
-        }}
+        className={clsx(
+          "drag-handle absolute top-2 left-1/2 -translate-x-1/2 flex items-center gap-2",
+          "bg-black/85 backdrop-blur-sm px-3 py-1.5 rounded-full border border-white/10 cursor-move",
+          "transition-opacity duration-200"
+        )}
+        style={{ opacity: isWindowFocused || isHovered ? 1 : 0 }}
       >
         {/* Grip */}
-        <div style={{ color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center' }}>
+        <div className="text-white/40 flex items-center">
           <svg width="6" height="10" viewBox="0 0 6 10" fill="currentColor">
             <circle cx="1.5" cy="1.5" r="1.5" />
             <circle cx="1.5" cy="5" r="1.5" />
@@ -659,22 +621,10 @@ function MissingSourcePlaceholder({
             <circle cx="4.5" cy="8.5" r="1.5" />
           </svg>
         </div>
-        <span style={{ fontSize: '11px', color: '#fca5a5' }}>Missing</span>
+        <span className="text-[11px] text-red-300">Missing</span>
         <button
           onClick={onDismiss}
-          style={{
-            background: 'rgba(239, 68, 68, 0.2)',
-            color: '#fca5a5',
-            border: 'none',
-            width: '20px',
-            height: '20px',
-            borderRadius: '50%',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            fontSize: '12px',
-          }}
+          className="bg-red-500/20 text-red-300 w-5 h-5 rounded-full flex items-center justify-center text-xs hover:bg-red-500/30 transition-colors"
         >
           ✕
         </button>
@@ -683,7 +633,6 @@ function MissingSourcePlaceholder({
   )
 }
 
-// Active source content with video
 function ComposableSourceContent({ 
   source, 
   availableSources, 
@@ -722,25 +671,18 @@ function ComposableSourceContent({
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
 
-  // Wheel handler for Zoom (Pinch) and Pan (Scroll)
   const onWheel = (e: React.WheelEvent) => {
     if (viewMode !== 'manual') return
     e.preventDefault()
     e.stopPropagation()
 
     if (e.ctrlKey) {
-      // Pinch to zoom (treated as ctrl + wheel on many platforms)
-      // Normalize delta
+      // Pinch to zoom
       const delta = -e.deltaY * 0.01
       const newScale = Math.min(5, Math.max(0.1, scale + delta))
       onScaleChange(newScale)
     } else {
       // Pan
-      // Note: trackpad scroll usually sends deltaX/Y. Standard wheel sends deltaY.
-      // We subtract delta to move content in the direction of gesture (natural scrolling handled by OS usually implies content follows finger)
-      // If OS has "natural scrolling" enabled, deltaY is inverted relative to wheel rotation.
-      // Standard behavior: Scroll down (positive deltaY) -> View moves down -> Content moves up.
-      // So newPanY = panY - deltaY.
       onPanChange({
         x: pan.x - e.deltaX,
         y: pan.y - e.deltaY
@@ -758,7 +700,7 @@ function ComposableSourceContent({
             mandatory: {
               chromeMediaSource: 'desktop',
               chromeMediaSourceId: source.id,
-              cursor: 'never' // Try inside mandatory
+              cursor: 'never'
             }
           } as any
         })
@@ -766,11 +708,9 @@ function ComposableSourceContent({
           videoRef.current.srcObject = stream
           videoRef.current.onloadedmetadata = async () => {
             try {
-              // Report native dimensions
               if (videoRef.current) {
                 const w = videoRef.current.videoWidth
                 const h = videoRef.current.videoHeight
-                console.log('Video native dimensions:', w, 'x', h, 'for source:', source.id)
                 onNativeDimensions(w, h)
               }
               await videoRef.current?.play()
@@ -793,18 +733,26 @@ function ComposableSourceContent({
   }, [source.id])
 
   // Internal Pan logic
+  const contentFits = Math.abs(scale - 1) < 0.01 && 
+    source.nativeWidth && Math.abs(source.width - source.nativeWidth) < 20 && 
+    source.nativeHeight && Math.abs(source.height - source.nativeHeight) < 20
+
+  const canPan = viewMode === 'manual' && !contentFits
+
   const onMouseDown = (e: React.MouseEvent) => {
-    if (viewMode !== 'manual') return
+    if (!canPan) return
     if (e.metaKey || e.ctrlKey) return // Allow Rnd to handle window drag
     if ((e.target as HTMLElement).closest('button') || 
         (e.target as HTMLElement).closest('.source-switcher') ||
         (e.target as HTMLElement).closest('.drag-handle')) return
+
     setIsDragging(true)
     dragStartRef.current = { x: e.clientX - pan.x, y: e.clientY - pan.y }
   }
 
   const onMouseMove = (e: React.MouseEvent) => {
     if (!isDragging) return
+    e.preventDefault()
     onPanChange({
       x: e.clientX - dragStartRef.current.x,
       y: e.clientY - dragStartRef.current.y
@@ -813,58 +761,65 @@ function ComposableSourceContent({
 
   const onMouseUp = () => setIsDragging(false)
 
+
+
   return (
     <div 
-      style={{ 
-        width: '100%', 
-        height: '100%', 
-        position: 'relative', 
-        overflow: 'hidden', 
-        cursor: isModifierPressed ? 'move' : (isDragging ? 'grabbing' : 'grab') 
-      }}
+      className="w-full h-full relative group overflow-hidden bg-black"
+      onWheel={onWheel}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
-      onWheel={onWheel}
+      onMouseLeave={onMouseUp}
     >
-      <div style={{
-          transform: viewMode === 'manual' ? `translate(${pan.x}px, ${pan.y}px) scale(${scale})` : 'none',
-          transformOrigin: 'top left',
-          willChange: 'transform',
-          width: viewMode === 'manual' ? 'fit-content' : '100%',
-          height: viewMode === 'manual' ? 'fit-content' : '100%',
-      }}>
-        {error ? (
-            <div style={{ padding: '20px', color: '#ff6b6b' }}>{error}</div>
-        ) : (
-            <video 
-            ref={videoRef} 
+      {error ? (
+        <div className="absolute inset-0 flex items-center justify-center text-red-400 bg-red-900/20 text-sm">
+          {error}
+        </div>
+      ) : (
+        <div 
+          style={{
+            // In manual mode, size the wrapper to the source's native (physical) dimensions
+            // This ensures scale(1) = 1 physical pixel per CSS pixel
+            width: viewMode === 'manual' && source.nativeWidth ? source.nativeWidth : '100%',
+            height: viewMode === 'manual' && source.nativeHeight ? source.nativeHeight : '100%',
+            cursor: isDragging ? 'grabbing' : (canPan && !isModifierPressed ? 'grab' : 'default'),
+            transform: viewMode === 'manual' 
+              ? `translate(${pan.x}px, ${pan.y}px) scale(${scale})` 
+              : undefined,
+            transformOrigin: '0 0',
+            opacity: isModifierPressed ? 0.6 : 1, 
+            transition: isDragging ? 'none' : 'opacity 0.2s',
+          }}
+        >
+           <video 
+            ref={videoRef}
+            className="pointer-events-none select-none"
             style={{ 
-                display: 'block', 
-                maxWidth: 'none', 
-                maxHeight: 'none',
-                width: viewMode === 'manual' ? 'auto' : '100%',
-                height: viewMode === 'manual' ? 'auto' : '100%',
-                objectFit: viewMode === 'manual' ? undefined : (viewMode === 'stretch' ? 'fill' : viewMode),
-                position: viewMode === 'manual' ? 'static' : 'absolute',
-                inset: 0
-            }} 
-            draggable={false}
-            />
-        )}
-      </div>
+              width: '100%', 
+              height: '100%',
+              maxWidth: 'none',
+              maxHeight: 'none',
+              objectFit: viewMode === 'manual' ? 'fill' : (viewMode as any),
+            }}
+            autoPlay 
+            muted 
+          />
+        </div>
+      )}
 
+      {/* Controls Overlay */}
       <SourceControls 
         sourceName={source.name}
         scale={scale}
         onScaleChange={onScaleChange}
         onDismiss={onDismiss}
         onSwitch={onSwitch}
+        availableSources={availableSources}
         onLayout={onLayout}
         viewMode={viewMode}
         onViewModeChange={onViewModeChange}
-        visible={isHovered ?? false} // Use strict hover state
-        availableSources={availableSources}
+        visible={!!(isHovered || isDragging)}
       />
     </div>
   )
