@@ -91,26 +91,27 @@ function createMainWindow() {
         return
     }
 
-    width: 800,
+    mainWindow = new BrowserWindow({
+        width: 800,
         height: 600,
-            title: 'Zoner',
-                backgroundColor: '#000000',
-                    hasShadow: false,
-                        webPreferences: {
-        preload: path.join(__dirname, 'preload.mjs'),
+        title: 'Zoner',
+        backgroundColor: '#000000',
+        hasShadow: false,
+        webPreferences: {
+            preload: path.join(__dirname, 'preload.mjs'),
             backgroundThrottling: false,
         },
-})
+    })
 
-const url = VITE_DEV_SERVER_URL
-    ? `${VITE_DEV_SERVER_URL}#/`
-    : `file://${path.join(DIST, 'index.html')}#/`
+    const url = VITE_DEV_SERVER_URL
+        ? `${VITE_DEV_SERVER_URL}#/`
+        : `file://${path.join(DIST, 'index.html')}#/`
 
-mainWindow.loadURL(url)
+    mainWindow.loadURL(url)
 
-mainWindow.on('closed', () => {
-    mainWindow = null
-})
+    mainWindow.on('closed', () => {
+        mainWindow = null
+    })
 }
 
 function createCompositorWindow() {

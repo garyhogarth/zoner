@@ -1,4 +1,8 @@
-import { useState } from 'react'
+
+import { useState, useRef } from 'react'
+import { IconButton } from './ui/Button'
+import { Menu, MenuItem, MenuHeader } from './ui/Menu'
+import { Tooltip } from './ui/Tooltip'
 
 export type LayoutType = 
   | 'real-size'
@@ -8,6 +12,7 @@ export type LayoutType =
   | 'first-third' | 'center-third' | 'last-third' | 'first-two-thirds' | 'last-two-thirds'
   | 'first-fourth' | 'second-fourth' | 'third-fourth' | 'last-fourth'
   | 'first-sixth' | 'second-sixth' | 'third-sixth' | 'fourth-sixth' | 'fifth-sixth' | 'last-sixth'
+
 export type ViewMode = 'cover' | 'contain' | 'stretch' | 'manual'
 
 export interface Source {
@@ -43,9 +48,17 @@ export function SourceControls({
   visible,
 }: SourceControlsProps) {
   const [isHovered, setIsHovered] = useState(false)
+  
+  // Menu states & refs
   const [showSwitcher, setShowSwitcher] = useState(false)
+  const switcherRef = useRef<HTMLButtonElement>(null)
+
   const [showLayout, setShowLayout] = useState(false)
+  const layoutRef = useRef<HTMLButtonElement>(null)
+
   const [showViewMode, setShowViewMode] = useState(false)
+  const viewModeRef = useRef<HTMLButtonElement>(null)
+
   const [menuLevel, setMenuLevel] = useState<MenuLevel>('main')
 
   const isVisible = visible || isHovered || showSwitcher || showLayout || showViewMode
@@ -69,7 +82,7 @@ export function SourceControls({
 
   return (
     <div
-      style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}
+      className="absolute inset-0 pointer-events-none"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => { 
         setIsHovered(false)
@@ -79,231 +92,169 @@ export function SourceControls({
         setMenuLevel('main')
       }}
     >
-      <div style={{
-        position: 'absolute',
-        top: '8px',
-        right: '8px',
-        display: 'flex',
-        gap: '4px',
-        alignItems: 'center',
-        pointerEvents: isVisible ? 'auto' : 'none',
-        opacity: isVisible ? 1 : 0,
-        transition: 'opacity 0.2s',
-      }}>
-        {/* Source Selector */}
-        <div style={{ position: 'relative' }}>
+      {/* Top-Right Action Group */}
+      <div 
+        className={`
+          absolute top-2 right-2 flex gap-1 items-center
+          transition-opacity duration-200
+          ${isVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}
+        `}
+      >
+        {/* Source Switcher */}
+        <div className="relative">
           <button
+            ref={switcherRef}
             onClick={() => {
               setShowSwitcher(!showSwitcher)
               setShowLayout(false)
               setShowViewMode(false)
             }}
-            style={pillButtonStyle}
+            className="flex items-center gap-1.5 bg-black/80 backdrop-blur-sm border border-white/15 text-white px-2.5 py-1 rounded-lg shadow-sm hover:bg-black/90 transition-colors"
             title={sourceName}
           >
-            <span style={{ 
-              fontSize: '11px', 
-              maxWidth: '100px',
-              overflow: 'hidden', 
-              textOverflow: 'ellipsis', 
-              whiteSpace: 'nowrap' 
-            }}>
-              {sourceName}
-            </span>
-            <span style={{ fontSize: '7px', marginLeft: '3px', opacity: 0.6 }}>▼</span>
+            <span className="text-[11px] max-w-[100px] truncate">{sourceName}</span>
+            <span className="text-[7px] opacity-60">▼</span>
           </button>
 
-          {showSwitcher && (
-            <div style={{ ...dropdownStyle, left: 'auto', right: 0 }}>
-              <div style={dropdownInnerStyle}>
-                {availableSources.map(s => (
-                  <button
-                    key={s.id}
-                    onClick={() => { onSwitch(s.id); setShowSwitcher(false) }}
-                    style={dropdownItemStyle}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    {s.appIcon ? <img src={s.appIcon} style={{ width: 12, height: 12, borderRadius: 2 }} /> : <span>📺</span>}
-                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <Menu 
+            isOpen={showSwitcher} 
+            onClose={() => setShowSwitcher(false)} 
+            triggerRef={switcherRef}
+            placement="bottom-end"
+            className="w-48"
+          >
+             <div className="max-h-[300px] overflow-y-auto">
+              {availableSources.map(s => (
+                <MenuItem
+                  key={s.id}
+                  onClick={() => { onSwitch(s.id); setShowSwitcher(false) }}
+                  label={s.name}
+                  icon={s.appIcon ? <img src={s.appIcon} className="w-3 h-3 rounded" /> : '📺'}
+                />
+              ))}
+             </div>
+          </Menu>
         </div>
 
-        {/* Drag Handle (Now paired with close button) */}
-        <div
-          className="drag-handle"
-          style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(8px)',
-            color: 'white',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'move', // Update to cross arrows as requested
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          }}
-          title="Drag to move"
-        >
-          {/* Cross arrows icon */}
-          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style={{ opacity: 0.8 }}>
-            <path d="M6 1V11M1 6H11M6 1L3 4M6 1L9 4M6 11L3 8M6 11L9 8M1 6L4 3M1 6L4 9M11 6L8 3M11 6L8 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </div>
+        {/* Drag Handle */}
+        <Tooltip content="Drag to move" side="bottom">
+          <div
+            className="drag-handle w-8 h-8 rounded-lg bg-black/70 backdrop-blur-sm border border-white/15 
+                       flex items-center justify-center cursor-move text-white/80 hover:text-white transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
+              <path d="M6 1V11M1 6H11M6 1L3 4M6 1L9 4M6 11L3 8M6 11L9 8M1 6L4 3M1 6L4 9M11 6L8 3M11 6L8 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </div>
+        </Tooltip>
 
         {/* Close Button */}
-        <button
-          onClick={onDismiss}
-          style={{
-            width: '24px',
-            height: '24px',
-            borderRadius: '6px',
-            border: '1px solid rgba(255, 255, 255, 0.15)',
-            background: 'rgba(0, 0, 0, 0.7)',
-            backdropFilter: 'blur(8px)',
-            color: 'rgba(255, 255, 255, 0.7)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '12px',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-          }}
-          title="Close"
+        <IconButton 
+          variant="solid" 
+          onClick={onDismiss} 
+          className="w-8 h-8 rounded-lg bg-black/70 border-white/15 text-white/70 hover:text-white"
         >
           ✕
-        </button>
+        </IconButton>
       </div>
 
-      {/* Bottom-Left: Zoom & Layout Controls */}
-      <div style={{
-        position: 'absolute',
-        bottom: '8px',
-        left: '8px',
-        display: 'flex',
-        gap: '4px',
-        pointerEvents: isVisible ? 'auto' : 'none',
-        opacity: isVisible ? 1 : 0,
-        transition: 'opacity 0.2s',
-      }}>
-        {/* Zoom Controls - only show in manual mode */}
+      {/* Bottom-Left View/Layout Group */}
+      <div 
+        className={`
+          absolute bottom-2 left-2 flex gap-1
+          transition-opacity duration-200
+          ${isVisible ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'}
+        `}
+      >
+        {/* Zoom Controls */}
         {viewMode === 'manual' && (
-          <div style={{ ...pillContainerStyle, display: 'flex', alignItems: 'center', gap: '3px' }}>
-            <button 
-              onClick={() => onScaleChange(Math.max(0.1, scale - 0.1))} 
-              style={miniButtonStyle}
-              title="Zoom Out"
-            >−</button>
-            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.8)', minWidth: '28px', textAlign: 'center', fontFamily: 'monospace' }}>
+          <div className="flex items-center gap-0.5 bg-black/80 backdrop-blur-sm border border-white/15 rounded-lg p-0.5 mr-1">
+            <IconButton size="sm" onClick={() => onScaleChange(Math.max(0.1, scale - 0.1))} className="w-5 h-5 rounded hover:bg-white/10 text-white">−</IconButton>
+            <span className="text-[9px] text-white/80 min-w-[28px] text-center font-mono">
               {Math.round(scale * 100)}%
             </span>
-            <button 
-              onClick={() => onScaleChange(Math.min(5, scale + 0.1))} 
-              style={miniButtonStyle}
-              title="Zoom In"
-            >+</button>
+            <IconButton size="sm" onClick={() => onScaleChange(Math.min(5, scale + 0.1))} className="w-5 h-5 rounded hover:bg-white/10 text-white">+</IconButton>
           </div>
         )}
 
         {/* View Mode */}
-        <div style={{ position: 'relative' }}>
-          <button
+        <div className="relative">
+          <IconButton
+            ref={viewModeRef}
+            variant="solid" 
             onClick={() => {
               setShowViewMode(!showViewMode)
               setShowLayout(false)
               setShowSwitcher(false)
             }}
-            style={iconButtonStyle}
-            title="View Mode"
+            className="w-8 h-8 rounded-lg bg-black/80 border-white/15 text-sm"
           >
             {viewMode === 'manual' ? '🔍' : viewMode === 'cover' ? '⬛' : viewMode === 'contain' ? '📐' : '↔️'}
-          </button>
+          </IconButton>
 
-          {showViewMode && (
-            <div style={{ ...dropdownStyle, bottom: '100%', top: 'auto', paddingBottom: '4px', paddingTop: 0 }}>
-              <div style={dropdownInnerStyle}>
-                {[
-                  { id: 'manual', label: 'Manual', icon: '🔍' },
-                  { id: 'cover', label: 'Cover', icon: '⬛' },
-                  { id: 'contain', label: 'Contain', icon: '📐' },
-                  { id: 'stretch', label: 'Stretch', icon: '↔️' },
-                ].map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => { onViewModeChange(opt.id as ViewMode); setShowViewMode(false) }}
-                    style={{
-                      ...dropdownItemStyle,
-                      background: viewMode === opt.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = viewMode === opt.id ? 'rgba(59, 130, 246, 0.2)' : 'transparent'}
-                  >
-                    <span>{opt.icon}</span>
-                    <span>{opt.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          <Menu 
+            isOpen={showViewMode} 
+            onClose={() => setShowViewMode(false)} 
+            triggerRef={viewModeRef}
+            placement="top-start"
+          >
+            <MenuHeader>View Mode</MenuHeader>
+            {[
+              { id: 'manual', label: 'Manual', icon: '🔍' },
+              { id: 'cover', label: 'Cover', icon: '⬛' },
+              { id: 'contain', label: 'Contain', icon: '📐' },
+              { id: 'stretch', label: 'Stretch', icon: '↔️' },
+            ].map(opt => (
+              <MenuItem
+                key={opt.id}
+                onClick={() => { onViewModeChange(opt.id as ViewMode); setShowViewMode(false) }}
+                label={opt.label}
+                icon={opt.icon}
+                active={viewMode === opt.id}
+              />
+            ))}
+          </Menu>
         </div>
 
         {/* Layout Presets */}
-        <div style={{ position: 'relative' }}>
-          <button
+        <div className="relative">
+          <IconButton 
+            ref={layoutRef}
+            variant="solid" 
             onClick={toggleLayout}
-            style={iconButtonStyle}
-            title="Layout Presets"
+            className="w-8 h-8 rounded-lg bg-black/80 border-white/15 text-sm"
           >
             ⊞
-          </button>
-
-          {showLayout && (
-            <div style={{ ...dropdownStyle, bottom: '100%', top: 'auto', paddingBottom: '4px', paddingTop: 0 }}>
-              <div style={dropdownInnerStyle}>
-                {/* Back Button for Submenus */}
-                {menuLevel !== 'main' && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setMenuLevel('main') }}
-                    style={{
-                      ...dropdownItemStyle,
-                      borderBottom: '1px solid rgba(255,255,255,0.1)',
-                      marginBottom: '4px',
-                      paddingBottom: '8px',
-                      color: 'rgba(255,255,255,0.6)'
-                    }}
-                  >
-                    <span>←</span>
-                    <span>Back</span>
-                  </button>
-                )}
-
-                {/* Menu Items */}
-                {MENU_ITEMS[menuLevel].map(opt => (
-                  <button
-                    key={opt.id}
-                    onClick={() => handleLayoutClick(opt)}
-                    style={dropdownItemStyle}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    {opt.type ? <LayoutIcon type={opt.type} /> : <span style={{ width: 14 }}>📁</span>}
-                    <span style={{ flex: 1 }}>{opt.label}</span>
-                    {opt.submenu && <span style={{ fontSize: '9px', opacity: 0.5 }}>▶</span>}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
+          </IconButton>
+          
+          <Menu 
+            isOpen={showLayout} 
+            onClose={() => setShowLayout(false)} 
+            triggerRef={layoutRef}
+            placement="top-start"
+            className="w-48 max-h-[400px] overflow-y-auto"
+          >
+             {menuLevel !== 'main' && (
+               <MenuItem 
+                 label="Back" 
+                 icon="←" 
+                 onClick={() => setMenuLevel('main')} 
+                 className="sticky top-0 bg-zinc-900 border-b border-white/10 z-10"
+               />
+             )}
+             
+             {MENU_ITEMS[menuLevel].map(opt => (
+               <MenuItem
+                 key={opt.id}
+                 onClick={() => handleLayoutClick(opt as any)}
+                 label={opt.label}
+                 icon={opt.type ? <LayoutIcon type={opt.type} /> : '📁'}
+                 hasSubmenu={!!opt.submenu}
+               />
+             ))}
+          </Menu>
         </div>
       </div>
-
     </div>
   )
 }
@@ -326,7 +277,7 @@ function LayoutIcon({ type }: { type: LayoutType }) {
   )
 
   return (
-    <svg width="14" height="10" viewBox="0 0 14 10" style={{ opacity: 0.9 }}>
+    <svg width="14" height="10" viewBox="0 0 14 10" className="opacity-90">
       {/* Base container */}
       <rect x="0.5" y="0.5" width="13" height="9" rx="1" {...rectProps} opacity="0.4" />
       
@@ -380,7 +331,7 @@ type MenuLevel = 'main' | 'halves' | 'corners' | 'thirds' | 'fourths' | 'sixths'
 
 const MENU_ITEMS: Record<MenuLevel, { id: string, label: string, type?: LayoutType, submenu?: MenuLevel }[]> = {
   main: [
-    { id: 'size', label: '1:1 Size', type: 'real-size' },
+    { id: 'size', label: 'Actual size', type: 'real-size' },
     { id: 'full', label: 'Full Screen', type: 'full' },
     { id: 'center', label: 'Center', type: 'center' },
     { id: 'halves', label: 'Halves', submenu: 'halves' },
@@ -422,95 +373,4 @@ const MENU_ITEMS: Record<MenuLevel, { id: string, label: string, type?: LayoutTy
     { id: 's5', label: 'Fifth Sixth', type: 'fifth-sixth' },
     { id: 's6', label: 'Last Sixth', type: 'last-sixth' },
   ]
-}
-
-// ... existing style variants ...
-// Style helpers
-const pillButtonStyle: React.CSSProperties = {
-  background: 'rgba(0, 0, 0, 0.8)',
-  backdropFilter: 'blur(8px)',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  color: 'white',
-  padding: '5px 10px',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  fontSize: '11px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-}
-
-const pillContainerStyle: React.CSSProperties = {
-  background: 'rgba(0, 0, 0, 0.8)',
-  backdropFilter: 'blur(8px)',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  padding: '4px 8px',
-  borderRadius: '8px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-}
-
-const iconButtonStyle: React.CSSProperties = {
-  width: '28px',
-  height: '28px',
-  borderRadius: '8px',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  background: 'rgba(0, 0, 0, 0.8)',
-  backdropFilter: 'blur(8px)',
-  color: 'white',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '14px',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-}
-
-const miniButtonStyle: React.CSSProperties = {
-  width: '18px',
-  height: '18px',
-  borderRadius: '4px',
-  border: 'none',
-  background: 'rgba(255, 255, 255, 0.15)',
-  color: 'white',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  fontSize: '12px',
-  fontWeight: 500,
-}
-
-const dropdownStyle: React.CSSProperties = {
-  position: 'absolute',
-  top: '100%',
-  left: 0,
-  paddingTop: '4px',
-  minWidth: '160px',
-  maxHeight: '300px',
-  overflowY: 'auto',
-  zIndex: 200,
-}
-
-const dropdownInnerStyle: React.CSSProperties = {
-  background: 'rgba(0, 0, 0, 0.95)',
-  backdropFilter: 'blur(12px)',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  borderRadius: '10px',
-  padding: '4px',
-  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-}
-
-const dropdownItemStyle: React.CSSProperties = {
-  width: '100%',
-  textAlign: 'left',
-  padding: '6px 10px',
-  background: 'transparent',
-  border: 'none',
-  color: 'white',
-  fontSize: '11px',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  display: 'flex',
-  alignItems: 'center',
-  gap: '10px',
 }
