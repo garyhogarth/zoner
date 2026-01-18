@@ -60,6 +60,14 @@ ipcMain.on('set-current-source', (event, { id, name }) => {
     updateTrayMenu()
 })
 
+// Resize compositor window (used when loading layouts)
+ipcMain.on('resize-window', (event, { width, height }) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (win) {
+        win.setSize(Math.round(width), Math.round(height))
+    }
+})
+
 // Navigate to specific source
 function navigateToSource(sourceId: string) {
     if (!mainWindow) {
@@ -86,6 +94,7 @@ function createMainWindow() {
         title: 'Sub-Screen',
         webPreferences: {
             preload: path.join(__dirname, 'preload.mjs'),
+            backgroundThrottling: false,
         },
     })
 
@@ -112,6 +121,7 @@ function createCompositorWindow() {
         title: 'Compositor Prototype',
         webPreferences: {
             preload: path.join(__dirname, 'preload.mjs'),
+            backgroundThrottling: false,
         },
     })
 

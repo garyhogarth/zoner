@@ -1,12 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSearchParams, Link, useNavigate } from 'react-router-dom'
 
-interface Source {
-  id: string
-  name: string
-  thumbnail: string
-  appIcon?: string | null
-}
+import { fetchUnifiedSources, type Source } from '../utils/sources'
 
 // Dropdown item with truncation + marquee on hover + thumbnail + appIcon
 function DropdownItem({ name, thumbnail, appIcon, isActive, onClick }: { name: string, thumbnail?: string, appIcon?: string | null, isActive: boolean, onClick: () => void }) {
@@ -143,11 +138,10 @@ export function Preview() {
   useEffect(() => {
     const fetchSources = async () => {
       try {
-        // @ts-ignore
-        const availableSources = await window.ipcRenderer.invoke('get-sources')
+        const availableSources = await fetchUnifiedSources()
         setSources(availableSources)
       } catch (e) {
-        console.error('Failed to fetch sources')
+        console.error('Failed to fetch sources', e)
       }
     }
     fetchSources()
@@ -175,15 +169,16 @@ export function Preview() {
 
     const startStream = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            mandatory: {
-              chromeMediaSource: 'desktop',
-              chromeMediaSourceId: sourceId,
-            }
-          } as any
-        })
+        let stream: MediaStream
+           stream = await navigator.mediaDevices.getUserMedia({
+            audio: false,
+            video: {
+                mandatory: {
+                chromeMediaSource: 'desktop',
+                chromeMediaSourceId: sourceId,
+                }
+            } as any
+           })
 
         if (!isActive) {
           stream.getTracks().forEach(track => track.stop())
@@ -469,6 +464,8 @@ export function Preview() {
                     onClick={() => handleSourceChange(s.id)}
                   />
                 ))}
+
+
                 
                 <div style={{ height: '1px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '8px 0' }} />
                 

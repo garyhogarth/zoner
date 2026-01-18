@@ -39,6 +39,12 @@ ipcMain.on("set-current-source", (event, { id, name }) => {
   currentSourceName = name;
   updateTrayMenu();
 });
+ipcMain.on("resize-window", (event, { width, height }) => {
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (win) {
+    win.setSize(Math.round(width), Math.round(height));
+  }
+});
 function navigateToSource(sourceId) {
   if (!mainWindow) {
     createMainWindow();
@@ -57,7 +63,8 @@ function createMainWindow() {
     height: 600,
     title: "Sub-Screen",
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs")
+      preload: path.join(__dirname$1, "preload.mjs"),
+      backgroundThrottling: false
     }
   });
   const url = VITE_DEV_SERVER_URL ? `${VITE_DEV_SERVER_URL}#/` : `file://${path.join(DIST, "index.html")}#/`;
@@ -76,7 +83,8 @@ function createCompositorWindow() {
     height: 700,
     title: "Compositor Prototype",
     webPreferences: {
-      preload: path.join(__dirname$1, "preload.mjs")
+      preload: path.join(__dirname$1, "preload.mjs"),
+      backgroundThrottling: false
     }
   });
   const url = VITE_DEV_SERVER_URL ? `${VITE_DEV_SERVER_URL}#/compositor` : `file://${path.join(DIST, "index.html")}#/compositor`;
