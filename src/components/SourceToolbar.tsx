@@ -53,80 +53,84 @@ export function SourceControls({
         setShowViewMode(false)
       }}
     >
-      {/* Top-Left: Source Selector */}
+      {/* Top-Right: Source Selector & Close Button */}
       <div style={{
         position: 'absolute',
         top: '8px',
-        left: '8px',
+        right: '8px',
+        display: 'flex',
+        gap: '4px',
+        alignItems: 'center',
         pointerEvents: isVisible ? 'auto' : 'none',
         opacity: isVisible ? 1 : 0,
         transition: 'opacity 0.2s',
       }}>
-        <button
-          onClick={() => setShowSwitcher(!showSwitcher)}
-          style={pillButtonStyle}
-          title={sourceName}
-        >
-          <span style={{ 
-            fontSize: '11px', 
-            maxWidth: '100px',
-            overflow: 'hidden', 
-            textOverflow: 'ellipsis', 
-            whiteSpace: 'nowrap' 
-          }}>
-            {sourceName}
-          </span>
-          <span style={{ fontSize: '7px', marginLeft: '3px', opacity: 0.6 }}>▼</span>
-        </button>
+        {/* Source Selector */}
+        <div style={{ position: 'relative' }}>
+          <button
+            onClick={() => {
+              setShowSwitcher(!showSwitcher)
+              setShowLayout(false)
+              setShowViewMode(false)
+            }}
+            style={pillButtonStyle}
+            title={sourceName}
+          >
+            <span style={{ 
+              fontSize: '11px', 
+              maxWidth: '100px',
+              overflow: 'hidden', 
+              textOverflow: 'ellipsis', 
+              whiteSpace: 'nowrap' 
+            }}>
+              {sourceName}
+            </span>
+            <span style={{ fontSize: '7px', marginLeft: '3px', opacity: 0.6 }}>▼</span>
+          </button>
 
-        {showSwitcher && (
-          <div style={dropdownStyle}>
-            <div style={dropdownInnerStyle}>
-              {availableSources.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => { onSwitch(s.id); setShowSwitcher(false) }}
-                  style={dropdownItemStyle}
-                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                >
-                  {s.appIcon ? <img src={s.appIcon} style={{ width: 12, height: 12, borderRadius: 2 }} /> : <span>📺</span>}
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
-                </button>
-              ))}
+          {showSwitcher && (
+            <div style={{ ...dropdownStyle, left: 'auto', right: 0 }}>
+              <div style={dropdownInnerStyle}>
+                {availableSources.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => { onSwitch(s.id); setShowSwitcher(false) }}
+                    style={dropdownItemStyle}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    {s.appIcon ? <img src={s.appIcon} style={{ width: 12, height: 12, borderRadius: 2 }} /> : <span>📺</span>}
+                    <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Top-Right: Close Button */}
-      <button
-        onClick={onDismiss}
-        style={{
-          position: 'absolute',
-          top: '8px',
-          right: '8px',
-          width: '24px',
-          height: '24px',
-          borderRadius: '6px',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          color: 'rgba(255, 255, 255, 0.7)',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '12px',
-          pointerEvents: isVisible ? 'auto' : 'none',
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 0.2s',
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        }}
-        title="Close"
-      >
-        ✕
-      </button>
+        {/* Close Button */}
+        <button
+          onClick={onDismiss}
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            color: 'rgba(255, 255, 255, 0.7)',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '12px',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+          title="Close"
+        >
+          ✕
+        </button>
+      </div>
 
       {/* Bottom-Left: Zoom & Layout Controls */}
       <div style={{
@@ -139,27 +143,33 @@ export function SourceControls({
         opacity: isVisible ? 1 : 0,
         transition: 'opacity 0.2s',
       }}>
-        {/* Zoom Controls */}
-        <div style={{ ...pillContainerStyle, display: 'flex', alignItems: 'center', gap: '3px' }}>
-          <button 
-            onClick={() => onScaleChange(Math.max(0.1, scale - 0.1))} 
-            style={miniButtonStyle}
-            title="Zoom Out"
-          >−</button>
-          <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.8)', minWidth: '28px', textAlign: 'center', fontFamily: 'monospace' }}>
-            {Math.round(scale * 100)}%
-          </span>
-          <button 
-            onClick={() => onScaleChange(Math.min(5, scale + 0.1))} 
-            style={miniButtonStyle}
-            title="Zoom In"
-          >+</button>
-        </div>
+        {/* Zoom Controls - only show in manual mode */}
+        {viewMode === 'manual' && (
+          <div style={{ ...pillContainerStyle, display: 'flex', alignItems: 'center', gap: '3px' }}>
+            <button 
+              onClick={() => onScaleChange(Math.max(0.1, scale - 0.1))} 
+              style={miniButtonStyle}
+              title="Zoom Out"
+            >−</button>
+            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.8)', minWidth: '28px', textAlign: 'center', fontFamily: 'monospace' }}>
+              {Math.round(scale * 100)}%
+            </span>
+            <button 
+              onClick={() => onScaleChange(Math.min(5, scale + 0.1))} 
+              style={miniButtonStyle}
+              title="Zoom In"
+            >+</button>
+          </div>
+        )}
 
         {/* View Mode */}
         <div style={{ position: 'relative' }}>
           <button
-            onClick={() => setShowViewMode(!showViewMode)}
+            onClick={() => {
+              setShowViewMode(!showViewMode)
+              setShowLayout(false)
+              setShowSwitcher(false)
+            }}
             style={iconButtonStyle}
             title="View Mode"
           >
@@ -197,7 +207,11 @@ export function SourceControls({
         {/* Layout Presets */}
         <div style={{ position: 'relative' }}>
           <button
-            onClick={() => setShowLayout(!showLayout)}
+            onClick={() => {
+              setShowLayout(!showLayout)
+              setShowViewMode(false)
+              setShowSwitcher(false)
+            }}
             style={iconButtonStyle}
             title="Layout Presets"
           >

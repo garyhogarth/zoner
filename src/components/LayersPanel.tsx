@@ -17,9 +17,64 @@ interface LayersPanelProps {
 
 export function LayersPanel({ layers, onReorder, onClose, onSelect }: LayersPanelProps) {
   const [isExpanded, setIsExpanded] = useState(false)
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null)
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
 
   // Sort by layerOrder (highest = front)
   const sortedLayers = [...layers].sort((a, b) => b.layerOrder - a.layerOrder)
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    setDraggedIndex(index)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', e.currentTarget.innerHTML)
+  }
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOverIndex(index)
+  }
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null)
+  }
+
+  const handleDrop = (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault()
+    if (draggedIndex === null || draggedIndex === dropIndex) {
+      setDraggedIndex(null)
+      setDragOverIndex(null)
+      return
+    }
+
+    const draggedLayer = sortedLayers[draggedIndex]
+    
+    // Determine if we're moving up or down
+    if (dropIndex < draggedIndex) {
+      // Moving up (increasing layer order)
+      onReorder(draggedLayer.instanceId, 'up')
+      // May need to call multiple times for larger jumps
+      const steps = draggedIndex - dropIndex
+      for (let i = 1; i < steps; i++) {
+        setTimeout(() => onReorder(draggedLayer.instanceId, 'up'), i * 50)
+      }
+    } else {
+      // Moving down (decreasing layer order)
+      onReorder(draggedLayer.instanceId, 'down')
+      const steps = dropIndex - draggedIndex
+      for (let i = 1; i < steps; i++) {
+        setTimeout(() => onReorder(draggedLayer.instanceId, 'down'), i * 50)
+      }
+    }
+
+    setDraggedIndex(null)
+    setDragOverIndex(null)
+  }
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null)
+    setDragOverIndex(null)
+  }
 
   return (
     <div style={{
@@ -94,6 +149,12 @@ export function LayersPanel({ layers, onReorder, onClose, onSelect }: LayersPane
               {sortedLayers.map((layer, index) => (
                 <div
                   key={layer.instanceId}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, index)}
+                  onDragOver={(e) => handleDragOver(e, index)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, index)}
+                  onDragEnd={handleDragEnd}
                   onClick={() => onSelect?.(layer.instanceId)}
                   style={{
                     display: 'flex',
@@ -105,13 +166,25 @@ export function LayersPanel({ layers, onReorder, onClose, onSelect }: LayersPane
                     backgroundColor: layer.isMissing 
                       ? 'rgba(239, 68, 68, 0.1)' 
                       : 'rgba(255, 255, 255, 0.05)',
-                    cursor: 'pointer',
-                    transition: 'background-color 0.15s',
+                    cursor: 'grab',
+                    transition: 'background-color 0.15s, transform 0.15s',
+                    opacity: draggedIndex === index ? 0.5 : 1,
+                    transform: dragOverIndex === index && draggedIndex !== index 
+                      ? 'translateY(-2px)' 
+                      : 'none',
+                    borderTop: dragOverIndex === index && draggedIndex !== null && draggedIndex > index
+                      ? '2px solid #3b82f6'
+                      : 'none',
+                    borderBottom: dragOverIndex === index && draggedIndex !== null && draggedIndex < index
+                      ? '2px solid #3b82f6'
+                      : 'none',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = layer.isMissing
-                      ? 'rgba(239, 68, 68, 0.2)'
-                      : 'rgba(255, 255, 255, 0.1)'
+                    if (draggedIndex === null) {
+                      e.currentTarget.style.backgroundColor = layer.isMissing
+                        ? 'rgba(239, 68, 68, 0.2)'
+                        : 'rgba(255, 255, 255, 0.1)'
+                    }
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = layer.isMissing
@@ -119,6 +192,20 @@ export function LayersPanel({ layers, onReorder, onClose, onSelect }: LayersPane
                       : 'rgba(255, 255, 255, 0.05)'
                   }}
                 >
+                  {/* Drag Handle */}
+                  <div style={{
+                    width: '12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '2px',
+                    flexShrink: 0,
+                    opacity: 0.4,
+                  }}>
+                    <div style={{ width: '100%', height: '2px', borderRadius: '1px', backgroundColor: 'currentColor' }} />
+                    <div style={{ width: '100%', height: '2px', borderRadius: '1px', backgroundColor: 'currentColor' }} />
+                    <div style={{ width: '100%', height: '2px', borderRadius: '1px', backgroundColor: 'currentColor' }} />
+                  </div>
+
                   {/* Layer Number */}
                   <span style={{
                     width: '20px',
@@ -162,48 +249,6 @@ export function LayersPanel({ layers, onReorder, onClose, onSelect }: LayersPane
 
                   {/* Controls */}
                   <div style={{ display: 'flex', gap: '2px', flexShrink: 0 }}>
-                    {/* Move Up */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onReorder(layer.instanceId, 'up') }}
-                      disabled={index === 0}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        border: 'none',
-                        backgroundColor: 'transparent',
-                        color: index === 0 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)',
-                        cursor: index === 0 ? 'default' : 'pointer',
-                        fontSize: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      title="Move forward"
-                    >
-                      ▲
-                    </button>
-
-                    {/* Move Down */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onReorder(layer.instanceId, 'down') }}
-                      disabled={index === sortedLayers.length - 1}
-                      style={{
-                        width: '20px',
-                        height: '20px',
-                        border: 'none',
-                        backgroundColor: 'transparent',
-                        color: index === sortedLayers.length - 1 ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.6)',
-                        cursor: index === sortedLayers.length - 1 ? 'default' : 'pointer',
-                        fontSize: '10px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                      title="Move back"
-                    >
-                      ▼
-                    </button>
-
                     {/* Close */}
                     <button
                       onClick={(e) => { e.stopPropagation(); onClose(layer.instanceId) }}
