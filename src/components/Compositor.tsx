@@ -35,6 +35,7 @@ export function Compositor() {
   const [showPicker, setShowPicker] = useState(false)
   const [replaceInstanceId, setReplaceInstanceId] = useState<string | null>(null)
   const [hoveredInstanceId, setHoveredInstanceId] = useState<string | null>(null)
+  const [isModifierPressed, setIsModifierPressed] = useState(false)
   
   // Saved layouts
   const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>(() => loadLayouts())
@@ -44,6 +45,22 @@ export function Compositor() {
 
   useEffect(() => {
     setSavedLayouts(loadLayouts())
+    
+    // Track modifier keys for drag operations
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Meta' || e.key === 'Control') setIsModifierPressed(true)
+    }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Meta' || e.key === 'Control') setIsModifierPressed(false)
+    }
+    
+    window.addEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
   }, [])
 
   // Window focus detection
@@ -372,6 +389,24 @@ export function Compositor() {
     } catch (e) {}
   }
 
+  // Bring source to front (max layer)
+  const handleBringToFront = (instanceId: string) => {
+    // 1. Sort by current order
+    const sorted = [...activeSources].sort((a, b) => a.layerOrder - b.layerOrder)
+    // 2. Remove target
+    const others = sorted.filter(s => s.instanceId !== instanceId)
+    const target = sorted.find(s => s.instanceId === instanceId)
+    if (!target) return
+
+    // 3. Rebuild list with target at end, re-indexing layers
+    const reordered = [...others, target].map((s, idx) => ({
+      ...s,
+      layerOrder: idx + 1
+    }))
+
+    setActiveSources(reordered)
+  }
+
   // Sort sources by layer order for rendering (lower = back, higher = front)
   const sortedSources = [...activeSources].sort((a, b) => a.layerOrder - b.layerOrder)
 
@@ -437,10 +472,13 @@ export function Compositor() {
               })
             }}
             bounds="parent"
-            dragHandleClassName="drag-handle"
+            dragHandleClassName={isModifierPressed ? "" : "drag-handle"}
+            enableUserSelectHack={false} 
             style={{ 
               zIndex: 10 + idx,
-              opacity: hoveredInstanceId && hoveredInstanceId !== source.instanceId ? 0.5 : 1,
+              opacity: hoveredInstanceId 
+                ? (hoveredInstanceId === source.instanceId ? 0.9 : 0.4) 
+                : (isFocused ? 0.9 : 0.7),
               transition: 'opacity 0.2s ease-in-out',
             }}
           >
@@ -453,9 +491,14 @@ export function Compositor() {
                 background: '#000',
                 overflow: 'hidden',
                 border: '1px solid #333',
+                cursor: isModifierPressed ? 'move' : 'default',
               }}
               onMouseEnter={() => setHoveredInstanceId(source.instanceId!)}
               onMouseLeave={() => setHoveredInstanceId(null)}
+              onDoubleClick={(e) => {
+                e.stopPropagation()
+                handleBringToFront(source.instanceId!)
+              }}
             >
               {source.isMissing ? (
                 <MissingSourcePlaceholder 
@@ -477,6 +520,7 @@ export function Compositor() {
                   onNativeDimensions={(w, h) => handleUpdateSource(source.instanceId!, { nativeWidth: w, nativeHeight: h })}
                   isWindowFocused={isFocused}
                   isHovered={hoveredInstanceId === source.instanceId}
+                  isModifierPressed={isModifierPressed}
                 />
               )}
             </div>
@@ -651,9 +695,10 @@ function ComposableSourceContent({
   onPanChange,
   onNativeDimensions,
   isWindowFocused,
-  isHovered
+  isHovered,
+  isModifierPressed
 }: { 
-  source: ComposableSource, 
+  source: ComposableSource,  
   availableSources: Source[], 
   onDismiss: () => void, 
   onSwitch: (id: string) => void,
@@ -663,7 +708,8 @@ function ComposableSourceContent({
   onPanChange: (pan: { x: number; y: number }) => void,
   onNativeDimensions: (width: number, height: number) => void,
   isWindowFocused: boolean,
-  isHovered?: boolean
+  isHovered?: boolean,
+  isModifierPressed?: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -713,6 +759,7 @@ function ComposableSourceContent({
             mandatory: {
               chromeMediaSource: 'desktop',
               chromeMediaSourceId: source.id,
+              cursor: 'never' // Try inside mandatory
             }
           } as any
         })
@@ -749,6 +796,7 @@ function ComposableSourceContent({
   // Internal Pan logic
   const onMouseDown = (e: React.MouseEvent) => {
     if (viewMode !== 'manual') return
+    if (e.metaKey || e.ctrlKey) return // Allow Rnd to handle window drag
     if ((e.target as HTMLElement).closest('button') || 
         (e.target as HTMLElement).closest('.source-switcher') ||
         (e.target as HTMLElement).closest('.drag-handle')) return
@@ -768,7 +816,13 @@ function ComposableSourceContent({
 
   return (
     <div 
-      style={{ width: '100%', height: '100%', position: 'relative', overflow: 'hidden', cursor: isDragging ? 'grabbing' : 'grab' }}
+      style={{ 
+        width: '100%', 
+        height: '100%', 
+        position: 'relative', 
+        overflow: 'hidden', 
+        cursor: isModifierPressed ? 'move' : (isDragging ? 'grabbing' : 'grab') 
+      }}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}

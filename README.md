@@ -1,73 +1,70 @@
-# React + TypeScript + Vite
+# Zoner
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+**Zoner** is a multi-window compositing tool for macOS, built with Electron, React, and Vite. It allows you to mirror specific windows or screens into a unified dashboard, enabling custom layouts, picture-in-picture monitoring, and advanced window management.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+### 🪟 Advanced Window Management
+- **Draggable & Resizable**: Freely arrange source windows.
+- **Smart Opacity**:
+  - Active/Hovered windows stay at **90% opacity**.
+  - Background windows dim to **40% opacity** to reduce clutter.
+  - When the app is unfocused, all windows dim to **70%**.
+- **Always on Top**: Zoner stays floating above other apps for easy monitoring.
 
-## React Compiler
+### 🎮 Interaction
+- **Hover Controls**: UI controls (Close, Zoom, Source Switcher) only appear when you hover a window.
+- **Double-Click**: Bring any window to the front instantly.
+- **Cmd + Drag**: Hold `Cmd` to drag a window from anywhere, even over content.
+- **Touch Gestures**:
+  - **Pan**: Two-finger scroll to pan video content.
+  - **Zoom**: Pinch-to-zoom (or Ctrl+Scroll) to scale content.
+- **Hide Cursor**: Video stream hides the captured system cursor (where possible) or hides the local cursor on hover to prevent "double cursor" issues.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 📐 Layout Presets
+Quickly snap windows to common grids:
+- **Halves** (Left, Right, Top, Bottom)
+- **Corners** (Top-Left, Bottom-Right, etc.)
+- **Thirds** & **Fourths** & **Sixths** (Column and grid layouts)
+- **Center Focus**
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+### Prerequisites
+- Node.js (v18+)
+- npm
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Setup
+```bash
+git clone https://github.com/your-repo/zoner.git
+cd zoner
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+### Run Locally
+```bash
+# Start Vite dev server + Electron
+npm run dev
 ```
+
+### Test
+```bash
+# Run unit tests with Vitest
+npm test
+```
+
+### Build
+```bash
+# Compile and package for macOS (creates .dmg and .zip in release/ folder)
+npm run build
+```
+
+## Release
+Releases are automated via GitHub Actions.
+1. Push a tag starting with `v` (e.g., `v1.0.0`).
+2. The workflow will build, sign (if configured), and publish a GitHub Release with artifacts.
+
+## Architecture
+- **Tech Stack**: Electron, React, TypeScript, Vite.
+- **State**: LocalStorage persistence for window layouts.
+- **Capture**: Uses `desktopCapturer` and `getUserMedia` for low-latency mirroring.

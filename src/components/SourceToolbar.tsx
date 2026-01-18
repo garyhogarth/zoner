@@ -79,7 +79,6 @@ export function SourceControls({
         setMenuLevel('main')
       }}
     >
-      {/* Top-Right: Source Selector & Close Button */}
       <div style={{
         position: 'absolute',
         top: '8px',
@@ -132,6 +131,31 @@ export function SourceControls({
               </div>
             </div>
           )}
+        </div>
+
+        {/* Drag Handle (Now paired with close button) */}
+        <div
+          className="drag-handle"
+          style={{
+            width: '24px',
+            height: '24px',
+            borderRadius: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            background: 'rgba(0, 0, 0, 0.7)',
+            backdropFilter: 'blur(8px)',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'move', // Update to cross arrows as requested
+            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+          }}
+          title="Drag to move"
+        >
+          {/* Cross arrows icon */}
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor" style={{ opacity: 0.8 }}>
+            <path d="M6 1V11M1 6H11M6 1L3 4M6 1L9 4M6 11L3 8M6 11L9 8M1 6L4 3M1 6L4 9M11 6L8 3M11 6L8 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
 
         {/* Close Button */}
@@ -280,41 +304,6 @@ export function SourceControls({
         </div>
       </div>
 
-      {/* Bottom-Right: Drag Handle */}
-      <div
-        className="drag-handle"
-        style={{
-          position: 'absolute',
-          bottom: '8px',
-          right: '8px',
-          width: '24px',
-          height: '24px',
-          borderRadius: '6px',
-          background: 'rgba(0, 0, 0, 0.7)',
-          backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'move',
-          pointerEvents: isVisible ? 'auto' : 'none',
-          opacity: isVisible ? 1 : 0,
-          transition: 'opacity 0.2s',
-        }}
-        title="Drag to move"
-      >
-        <svg width="10" height="10" viewBox="0 0 10 10" fill="rgba(255,255,255,0.5)">
-          <circle cx="2" cy="2" r="1.2" />
-          <circle cx="2" cy="5" r="1.2" />
-          <circle cx="2" cy="8" r="1.2" />
-          <circle cx="5" cy="2" r="1.2" />
-          <circle cx="5" cy="5" r="1.2" />
-          <circle cx="5" cy="8" r="1.2" />
-          <circle cx="8" cy="2" r="1.2" />
-          <circle cx="8" cy="5" r="1.2" />
-          <circle cx="8" cy="8" r="1.2" />
-        </svg>
-      </div>
     </div>
   )
 }
