@@ -34,14 +34,14 @@ export function Compositor() {
   const [pickerSources, setPickerSources] = useState<Source[]>([])
   const [showPicker, setShowPicker] = useState(false)
   const [replaceInstanceId, setReplaceInstanceId] = useState<string | null>(null)
+  const [hoveredInstanceId, setHoveredInstanceId] = useState<string | null>(null)
   
   // Saved layouts
-  const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>([])
+  const [savedLayouts, setSavedLayouts] = useState<SavedLayout[]>(() => loadLayouts())
   
   // Window focus state for UI visibility
   const [isFocused, setIsFocused] = useState(true)
 
-  // Load saved layouts on mount
   useEffect(() => {
     setSavedLayouts(loadLayouts())
   }, [])
@@ -149,31 +149,67 @@ export function Compositor() {
     const P = 10 // Padding for resize handles
     let updates: Partial<ComposableSource> = {}
 
-    switch (type) {
-      case 'full':
-        updates = { x: P, y: P, width: W - P * 2, height: H - P * 2 }
-        break
-      case 'left':
-        updates = { x: P, y: P, width: W / 2 - P * 1.5, height: H - P * 2 }
-        break
-      case 'right':
-        updates = { x: W / 2 + P / 2, y: P, width: W / 2 - P * 1.5, height: H - P * 2 }
-        break
-      case 'top-left':
-        updates = { x: P, y: P, width: W / 2 - P * 1.5, height: H / 2 - P * 1.5 }
-        break
-      case 'top-right':
-        updates = { x: W / 2 + P / 2, y: P, width: W / 2 - P * 1.5, height: H / 2 - P * 1.5 }
-        break
-      case 'bottom-left':
-        updates = { x: P, y: H / 2 + P / 2, width: W / 2 - P * 1.5, height: H / 2 - P * 1.5 }
-        break
-      case 'bottom-right':
-        updates = { x: W / 2 + P / 2, y: H / 2 + P / 2, width: W / 2 - P * 1.5, height: H / 2 - P * 1.5 }
-        break
-      case 'center':
-        updates = { x: (W - 600) / 2, y: (H - 450) / 2, width: 600, height: 450 }
-        break
+      const getGridRect = (segments: number, index: number, span: number = 1) => {
+        const gap = P
+        const avail = W - 2 * P - (segments - 1) * gap
+        const unit = avail / segments
+        const x = P + index * (unit + gap)
+        const w = unit * span + (span - 1) * gap
+        return { x, width: w }
+      }
+      
+      const setRect = (hSeg: number, hIdx: number, hSpan: number, vSeg: number = 1, vIdx: number = 0, vSpan: number = 1) => {
+        const h = getGridRect(hSeg, hIdx, hSpan)
+        // Vertical logic is simpler for now (usually just full height or halves)
+        // reuse same logic for vertical to support top/bottom halves
+        const vGap = P
+        const vAvail = H - 2 * P - (vSeg - 1) * vGap
+        const vUnit = vAvail / vSeg
+        const y = P + vIdx * (vUnit + vGap)
+        const height = vUnit * vSpan + (vSpan - 1) * vGap
+        
+        updates = { x: h.x, y, width: h.width, height }
+      }
+
+      switch (type) {
+        case 'full': setRect(1, 0, 1); break
+        case 'center': 
+          updates = { x: (W - 800) / 2, y: (H - 600) / 2, width: 800, height: 600 }
+          break
+        
+        // Halves
+        case 'left': setRect(2, 0, 1); break
+        case 'right': setRect(2, 1, 1); break
+        case 'top-half': setRect(1, 0, 1, 2, 0, 1); break
+        case 'bottom-half': setRect(1, 0, 1, 2, 1, 1); break
+        
+        // Corners
+        case 'top-left': setRect(2, 0, 1, 2, 0, 1); break
+        case 'top-right': setRect(2, 1, 1, 2, 0, 1); break
+        case 'bottom-left': setRect(2, 0, 1, 2, 1, 1); break
+        case 'bottom-right': setRect(2, 1, 1, 2, 1, 1); break
+
+        // Thirds
+        case 'first-third': setRect(3, 0, 1); break
+        case 'center-third': setRect(3, 1, 1); break
+        case 'last-third': setRect(3, 2, 1); break
+        case 'first-two-thirds': setRect(3, 0, 2); break
+        case 'last-two-thirds': setRect(3, 1, 2); break
+
+        // Fourths
+        case 'first-fourth': setRect(4, 0, 1); break
+        case 'second-fourth': setRect(4, 1, 1); break
+        case 'third-fourth': setRect(4, 2, 1); break
+        case 'last-fourth': setRect(4, 3, 1); break
+
+        // Sixths
+        case 'first-sixth': setRect(6, 0, 1); break
+        case 'second-sixth': setRect(6, 1, 1); break
+        case 'third-sixth': setRect(6, 2, 1); break
+        case 'fourth-sixth': setRect(6, 3, 1); break
+        case 'fifth-sixth': setRect(6, 4, 1); break
+        case 'last-sixth': setRect(6, 5, 1); break
+
       case 'real-size': {
         // Size window to match source's native video dimensions exactly
         const source = activeSources.find(s => s.instanceId === instanceId)
@@ -402,17 +438,25 @@ export function Compositor() {
             }}
             bounds="parent"
             dragHandleClassName="drag-handle"
-            style={{ zIndex: 10 + idx }}
+            style={{ 
+              zIndex: 10 + idx,
+              opacity: hoveredInstanceId && hoveredInstanceId !== source.instanceId ? 0.5 : 1,
+              transition: 'opacity 0.2s ease-in-out',
+            }}
           >
-            <div style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              flexDirection: 'column',
-              background: '#000',
-              overflow: 'hidden',
-              border: '1px solid #333',
-            }}>
+            <div 
+              style={{
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                flexDirection: 'column',
+                background: '#000',
+                overflow: 'hidden',
+                border: '1px solid #333',
+              }}
+              onMouseEnter={() => setHoveredInstanceId(source.instanceId!)}
+              onMouseLeave={() => setHoveredInstanceId(null)}
+            >
               {source.isMissing ? (
                 <MissingSourcePlaceholder 
                   source={source}
@@ -432,6 +476,7 @@ export function Compositor() {
                   onPanChange={(pan) => handleUpdateSource(source.instanceId!, { pan })}
                   onNativeDimensions={(w, h) => handleUpdateSource(source.instanceId!, { nativeWidth: w, nativeHeight: h })}
                   isWindowFocused={isFocused}
+                  isHovered={hoveredInstanceId === source.instanceId}
                 />
               )}
             </div>
@@ -605,7 +650,8 @@ function ComposableSourceContent({
   onScaleChange,
   onPanChange,
   onNativeDimensions,
-  isWindowFocused
+  isWindowFocused,
+  isHovered
 }: { 
   source: ComposableSource, 
   availableSources: Source[], 
@@ -616,7 +662,8 @@ function ComposableSourceContent({
   onScaleChange: (scale: number) => void,
   onPanChange: (pan: { x: number; y: number }) => void,
   onNativeDimensions: (width: number, height: number) => void,
-  isWindowFocused: boolean
+  isWindowFocused: boolean,
+  isHovered?: boolean
 }) {
   const videoRef = useRef<HTMLVideoElement>(null)
   const [error, setError] = useState<string | null>(null)
@@ -629,6 +676,32 @@ function ComposableSourceContent({
   // Internal pan state
   const [isDragging, setIsDragging] = useState(false)
   const dragStartRef = useRef({ x: 0, y: 0 })
+
+  // Wheel handler for Zoom (Pinch) and Pan (Scroll)
+  const onWheel = (e: React.WheelEvent) => {
+    if (viewMode !== 'manual') return
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (e.ctrlKey) {
+      // Pinch to zoom (treated as ctrl + wheel on many platforms)
+      // Normalize delta
+      const delta = -e.deltaY * 0.01
+      const newScale = Math.min(5, Math.max(0.1, scale + delta))
+      onScaleChange(newScale)
+    } else {
+      // Pan
+      // Note: trackpad scroll usually sends deltaX/Y. Standard wheel sends deltaY.
+      // We subtract delta to move content in the direction of gesture (natural scrolling handled by OS usually implies content follows finger)
+      // If OS has "natural scrolling" enabled, deltaY is inverted relative to wheel rotation.
+      // Standard behavior: Scroll down (positive deltaY) -> View moves down -> Content moves up.
+      // So newPanY = panY - deltaY.
+      onPanChange({
+        x: pan.x - e.deltaX,
+        y: pan.y - e.deltaY
+      })
+    }
+  }
 
   useEffect(() => {
     let stream: MediaStream | null = null
@@ -699,6 +772,7 @@ function ComposableSourceContent({
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
       onMouseUp={onMouseUp}
+      onWheel={onWheel}
     >
       <div style={{
           transform: viewMode === 'manual' ? `translate(${pan.x}px, ${pan.y}px) scale(${scale})` : 'none',
@@ -736,7 +810,7 @@ function ComposableSourceContent({
         onLayout={onLayout}
         viewMode={viewMode}
         onViewModeChange={onViewModeChange}
-        visible={isWindowFocused}
+        visible={isHovered ?? false} // Use strict hover state
         availableSources={availableSources}
       />
     </div>
